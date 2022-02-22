@@ -11,7 +11,7 @@ setup(name='swarmpy_simulator',
       author='Evelyne Akopyan',
       author_email='evelyne.akopyan@gmail.com',
       url='https://github.com/eakopyan/SwarmPy-Simulator',
-      packages=find_packages(),
+      packages=find_packages(include='swarmpy_simulator'),
       include_package_data=True,
       zip_safe=False)
 
