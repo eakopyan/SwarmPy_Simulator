@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 if sys.version_info < (3, 2):
     raise Exception('Only Python 3.2+ is supported')
 
-setup(name='swarmpy_simulator',
+setup(name='SwarmPy_Simulator',
       version='0.1',
       description="Simulator for swarms of nanosatellites",
       author='Evelyne Akopyan',
