@@ -10,7 +10,7 @@ setup(name='swarmpy_simulator',
       description="Simulator for swarms of nanosatellites",
       author='Evelyne Akopyan',
       author_email='evelyne.akopyan@gmail.com',
-      url='https://github.com/eakopyan/SwarmPy-Simulator',
+      url='https://github.com/eakopyan/SwarmPy_Simulator',
       packages=find_packages(include='swarmpy_simulator'),
       include_package_data=True,
       zip_safe=False)
