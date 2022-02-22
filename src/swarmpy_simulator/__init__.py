@@ -15,8 +15,8 @@ class GithubComFinder:
     """Handles `github_com....` modules."""
 
     def find_module(self, module_name, package_path):
-        if module_name.startswith('github_com'):
-            return GithubComLoader()
+        #if module_name.startswith('github_com'):
+        return GithubComLoader()
 
 
 class GithubComLoader:
