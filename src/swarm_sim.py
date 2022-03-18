@@ -38,7 +38,7 @@ class Node:
         nb_neigh = len(self.neighbors)
         return f"Node ID {self.id} ({self.x},{self.y},{self.z}) has {nb_neigh} neighbor(s)"
     
-    def add_neighbor(self, node:Node):
+    def add_neighbor(self, node):
         """
         Function to add a node to the neighbor list of the node unless it is already in its list.
         
@@ -48,7 +48,7 @@ class Node:
         if node not in self.neighbors:
             self.neighbors.append(node)
         
-    def remove_neighbor(self, node:Node):
+    def remove_neighbor(self, node):
         """
         Function to remove a node from the neighbor list of the node unless it is not in its list.
         
@@ -67,7 +67,7 @@ class Node:
         """
         return len(self.neighbors)
     
-    def compute_dist(self, node:Node):
+    def compute_dist(self, node):
         """
         Function to compute the Euclidean distance between two nodes.
         
@@ -79,7 +79,7 @@ class Node:
         """
         return dist((self.x, self.y, self.z) , (node.x, node.y, node.z))
     
-    def is_neighbor(self, node:Node, connection_range=0):
+    def is_neighbor(self, node, connection_range=0):
         """
         Function to verify whether two nodes are neighbors or not, based on the connection range. 
         Either adds or removes the second node from the neighbor list of the first.
@@ -108,11 +108,15 @@ class Node:
         """
         nb_transmissions = 0
         for node in self.neighbors:
-            if node.state == 0: # Previous state: the node has not received the message yet
-                node.state = 1 # New state: the node receives the message now
+            if node.state != -1: # Previous state: the node has not transmitted the message yet
+                node.state = 1 # New state: the node receives a (new) message 
                 nb_transmissions += 1
+                print(f'Node {self.id} transmits to {node.id}')
         if nb_transmissions > 0: 
             self.state = -1 # the node has transmitted the message to at least one neighbor. Else, keeps it till next connection
+            print(f'\nNode {self.id} has transmitted {nb_transmissions} message(s) (state {self.state}).\n')
+        else:
+            print(f'\nNode {self.id} has no one to transmit to (state {self.state}).\n')
         
     
     
@@ -231,11 +235,15 @@ class Swarm:
         Args:
             ps (dict, optional): the previous (or initial) state of the swarm. Defaults to None.
         """
+        bearers = []
         for node_id, state in ps.items():
             node = self.get_node_by_id(node_id)
             node.state = state
             if state == 1: # Message bearer
-                node.epidemic() 
+                bearers.append(node)
+        print(len(bearers), 'Bearer node(s):\n', [n.id for n in bearers])
+        for node in bearers:
+            node.epidemic() 
             
         
     def plot(self, t:int):
