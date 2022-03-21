@@ -106,15 +106,16 @@ class Node:
             1: the node is currently bearing a message
             -1: the node has transmitted its message
         """
-        nb_transmissions = 0
+        transmissions = []
         for node in self.neighbors:
             if node.state != -1: # Previous state: the node has not transmitted the message yet
                 node.state = 1 # New state: the node receives a (new) message 
-                nb_transmissions += 1
-                print(f'Node {self.id} transmits to {node.id}')
+                transmissions.append(node.id)
+        nb_transmissions = len(transmissions)
         if nb_transmissions > 0: 
             self.state = -1 # the node has transmitted the message to at least one neighbor. Else, keeps it till next connection
-            print(f'\nNode {self.id} has transmitted {nb_transmissions} message(s) (state {self.state}).\n')
+            print(f'\nNode {self.id} has transmitted {nb_transmissions} message(s) (state {self.state}):')
+            print([t for t in transmissions])
         else:
             print(f'\nNode {self.id} has no one to transmit to (state {self.state}).\n')
         
