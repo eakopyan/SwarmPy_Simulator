@@ -27,6 +27,7 @@ class Node:
         self.z = float(z) 
         self.neighbors = [] # List(Node), list of neighbor nodes to the node
         self.state = 0 # Message propagation state: 0 = no message received, 1 = message bearer, -1 = message transmitted
+        self.copies_from = [] # List of message copies received from sources. List of Node IDs
         
     def __str__(self):
         """
@@ -37,6 +38,10 @@ class Node:
         """
         nb_neigh = len(self.neighbors)
         return f"Node ID {self.id} ({self.x},{self.y},{self.z}) has {nb_neigh} neighbor(s)"
+    
+    def show_copies(self):
+        nb_copies = len(self.copies_from)
+        print(f'Node {self.id} received {nb_copies} copies from:\n {self.copies_from}')
     
     def add_neighbor(self, node):
         """
@@ -110,6 +115,7 @@ class Node:
         for node in self.neighbors:
             if node.state != -1: # Previous state: the node has not transmitted the message yet
                 node.state = 1 # New state: the node receives a (new) message 
+                node.copies_from.append(self.id)
                 transmissions.append(node.id)
         nb_transmissions = len(transmissions)
         if nb_transmissions > 0: 
@@ -216,6 +222,7 @@ class Swarm:
         """
         for node in self.nodes:
             node.state = 0
+            node.copies_from = []
             
     def get_swarm_state(self):
         """
@@ -226,7 +233,7 @@ class Swarm:
         """
         state = {}
         for node in self.nodes:
-            state[node.id] = node.state
+            state[node.id] = (node.state, node.copies_from)
         return state
    
     def epidemic(self, ps = None):
@@ -237,9 +244,10 @@ class Swarm:
             ps (dict, optional): the previous (or initial) state of the swarm. Defaults to None.
         """
         bearers = []
-        for node_id, state in ps.items():
+        for node_id, (state, copies) in ps.items():
             node = self.get_node_by_id(node_id)
             node.state = state
+            node.copies_from = copies
             if state == 1: # Message bearer
                 bearers.append(node)
         print(len(bearers), 'Bearer node(s):\n', [n.id for n in bearers])
