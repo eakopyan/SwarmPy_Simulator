@@ -124,7 +124,23 @@ class Node:
             print([t for t in transmissions])
         else:
             print(f'\nNode {self.id} has no one to transmit to (state {self.state}).\n')
-        
+            
+    def listen_and_retransmit(self):
+        """
+        Function to simulate a retransmission in an epidemic propagation from the node to all its neighbors.
+        The function is always called by a (-1) node and affects the state of (0) neighbor nodes.
+        """
+        retransmissions = []
+        for node in self.neighbors:
+            if node.state == 0: # Previous state: the node has not received the message yet
+                node.state = 1 # New state: the node receives a (new) message 
+                node.copies_from.append(self.id)
+                retransmissions.append(node.id)
+        nb_transmissions = len(retransmissions)
+        if nb_transmissions > 0: 
+            print(f'\nNode {self.id} has retransmitted {nb_transmissions} message(s) (state {self.state}):')
+            print([t for t in retransmissions])
+
     
     
 #==============================================================================================
@@ -216,9 +232,9 @@ class Swarm:
             if node.id == id:
                 return node
     
-    def reset_state(self):
+    def reset_propagation(self):
         """
-        Function to reset all nodes states to 0 for the simulation of a message propagation.
+        Function to reset all nodes states to 0 for the simulation of a message propagation and erase message history.
         """
         for node in self.nodes:
             node.state = 0
@@ -233,27 +249,46 @@ class Swarm:
         """
         state = {}
         for node in self.nodes:
-            state[node.id] = (node.state, node.copies_from)
+            state[node.id] = node.state
         return state
+    
+    def get_swarm_copies(self):
+        """
+        Function to retrieve the current message copies of each node of the swarm as a dict object.
+
+        Returns:
+            dict: (key, value) is (node ID, message copies)
+        """
+        copies = {}
+        for node in self.nodes:
+            copies[node.id] = node.copies_from
+        return copies
    
-    def epidemic(self, ps = None):
+    def epidemic(self, prev_state = None, prev_copies=None, enhanced=False):
         """
         Function to simulate an epidemic message propagation in the swarm.
 
         Args:
-            ps (dict, optional): the previous (or initial) state of the swarm. Defaults to None.
+            prev_state (dict, optional): the previous (or initial) state of the swarm. Defaults to None.
+            prev_copies (dict, optional): the previous (or initial) message copies of the swarm. Defaults to None.
         """
         bearers = []
-        for node_id, (state, copies) in ps.items():
+        listeners = []
+        for node_id,state in prev_state.items():
             node = self.get_node_by_id(node_id)
             node.state = state
-            node.copies_from = copies
+            node.copies_from = prev_copies[node_id]
             if state == 1: # Message bearer
                 bearers.append(node)
+            elif state == -1:
+                listeners.append(node)
         print(len(bearers), 'Bearer node(s):\n', [n.id for n in bearers])
         for node in bearers:
             node.epidemic() 
-            
+        if enhanced:
+            for node in listeners:
+                node.listen_and_retransmit()
+
         
     def plot(self, t:int):
         """
