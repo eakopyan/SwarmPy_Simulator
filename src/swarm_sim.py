@@ -200,6 +200,18 @@ class Swarm:
         """
         return [node.degree() for node in self.nodes]
     
+    def distance_matrix(self):
+        """
+        Function to compute the Euclidean distance matrix of the swarm.
+
+        Returns:
+            list: a 2-dimensional distance matrix formatted as matrix[node1][node2] = distance
+        """
+        matrix = []
+        for n1 in self.nodes:
+            matrix.append([n1.compute_dist(n2) for n2 in self.nodes])
+        return matrix
+    
     def neighbor_matrix(self, connection_range=None):
         """
         Function to compute the neighbor matrix of the swarm.
@@ -209,7 +221,7 @@ class Swarm:
             connection_range (int, optional): the connection range of the swarm. Defaults to None.
 
         Returns:
-            list: the 2-dimensional neighbor matrix formatted as matrix[row][column]
+            list: the 2-dimensional neighbor matrix formatted as matrix[node1][node2]
         """
         matrix = []
         if not connection_range:
