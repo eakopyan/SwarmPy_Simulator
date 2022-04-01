@@ -209,7 +209,7 @@ class Swarm:
         """
         matrix = []
         for n1 in self.nodes:
-            matrix.append([n1.compute_dist(n2) for n2 in self.nodes])
+            matrix.append([n1.compute_dist(n2) for n2 in self.nodes if n1.id != n2.id])
         return matrix
     
     def neighbor_matrix(self, connection_range=None):
