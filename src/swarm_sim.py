@@ -72,6 +72,22 @@ class Node:
         """
         return len(self.neighbors)
     
+    def k_vicinity(self, depth=1):
+        """
+        Function to compute the k-vicinity (aka the extended neighborhood) of the node.
+
+        Args:
+            depth (int, optional): the number of hops for extension. Defaults to 1.
+
+        Returns:
+            int: the length of the extended neighbor list of the node
+        """
+        kv = self.neighbors.copy()
+        for i in range(depth-1):
+            nodes = kv
+            kv.extend([n for node in nodes for n in node.neighbors])
+        return len(set(kv))
+    
     def compute_dist(self, node):
         """
         Function to compute the Euclidean distance between two nodes.
@@ -199,6 +215,18 @@ class Swarm:
             list: list of node degrees (int)
         """
         return [node.degree() for node in self.nodes]
+    
+    def k_vicinity(self, depth=1):
+        """
+        Function to compute the k-vicinity (aka the extended neighborhood) of each node in the swarm.
+
+        Args:
+            depth (int, optional): the number of hops for extension. Defaults to 1.
+
+        Returns:
+            list: list of k-vicinity values (int)
+        """
+        return [node.k_vicinity(depth) for node in self.nodes]
     
     def distance_matrix(self):
         """
