@@ -27,7 +27,7 @@ class Node:
         self.z = float(z) 
         self.neighbors = [] # List(Node), list of neighbor nodes to the node
         self.state = 0 # Message propagation state: 0 = no message received, 1 = message bearer, -1 = message transmitted
-        self.copies_from = [] # List of message copies received from sources. List of Node IDs
+        self.messages = [] # List of messages received from sources. List of Packet objects
         
     def __str__(self):
         """
@@ -39,9 +39,12 @@ class Node:
         nb_neigh = len(self.neighbors)
         return f"Node ID {self.id} ({self.x},{self.y},{self.z}) has {nb_neigh} neighbor(s)"
     
-    def show_copies(self):
-        nb_copies = len(self.copies_from)
-        print(f'Node {self.id} received {nb_copies} copies from:\n {self.copies_from}')
+    def show_messages(self):
+        nb_sig = len([m for m in self.messages if m.tos==0])
+        nb_data = len([m for m in self.messages if m.tos==1])
+        print(f'Node {self.id} received {nb_sig} signaling messages and {nb_data} data messages.')
+        for m in self.messages:
+            print(m)
     
     def add_neighbor(self, node):
         """
@@ -119,7 +122,11 @@ class Node:
             self.remove_neighbor(node)
         return 0
     
-    def epidemic(self):
+    def receive(self, pkt):
+        self.state = 1
+        self.messages.append(pkt)
+    
+    def epidemic(self, pkt):
         """
         Function to simulate an epidemic propagation from the node to all its neighbors.
         The function affects the state attribute of the Node objects:
@@ -130,13 +137,12 @@ class Node:
         transmissions = []
         for node in self.neighbors:
             if node.state != -1: # Previous state: the node has not transmitted the message yet
-                node.state = 1 # New state: the node receives a (new) message 
-                node.copies_from.append(self.id)
+                node.receive(pkt)
                 transmissions.append(node.id)
         nb_transmissions = len(transmissions)
         if nb_transmissions > 0: 
             self.state = -1 # the node has transmitted the message to at least one neighbor. Else, keeps it till next connection
-            print(f'\nNode {self.id} has transmitted {nb_transmissions} message(s) (state {self.state}):')
+            print(f'\nNode {self.id} has transmitted {nb_transmissions} message(s) to:')
             print([t for t in transmissions])
         else:
             print(f'\nNode {self.id} has no one to transmit to (state {self.state}).\n')
@@ -292,32 +298,32 @@ class Swarm:
             state[node.id] = node.state
         return state
     
-    def get_swarm_copies(self):
+    def get_swarm_msg(self):
         """
         Function to retrieve the current message copies of each node of the swarm as a dict object.
 
         Returns:
-            dict: (key, value) is (node ID, message copies)
+            dict: (key, value) is (node ID, Packet)
         """
-        copies = {}
+        msg = {}
         for node in self.nodes:
-            copies[node.id] = node.copies_from
-        return copies
+            msg[node.id] = node.messages
+        return msg
    
-    def epidemic(self, prev_state = None, prev_copies=None, enhanced=False):
+    def epidemic(self, prev_state = None, prev_msg=None, enhanced=False):
         """
         Function to simulate an epidemic message propagation in the swarm.
 
         Args:
             prev_state (dict, optional): the previous (or initial) state of the swarm. Defaults to None.
-            prev_copies (dict, optional): the previous (or initial) message copies of the swarm. Defaults to None.
+            prev_msg (dict, optional): the previous (or initial) messages of the swarm. Defaults to None.
         """
         bearers = []
         listeners = []
         for node_id,state in prev_state.items():
             node = self.get_node_by_id(node_id)
             node.state = state
-            node.copies_from = prev_copies[node_id]
+            node.messages = prev_msg[node_id]
             if state == 1: # Message bearer
                 bearers.append(node)
             elif state == -1:
@@ -387,12 +393,12 @@ class Packet:
         dest = self.dest_addr
         if dest == None:
             dest = 'BROADCAST'
-        ids = f'Source ID: {self.src_addr}\nDestination ID: {dest}\n'
+        ids = f'SRC: {self.src_addr}\t DEST: {dest}\t'
         tos = 'SIGNALING'
         if self.tos == 1:
             tos = 'DATA'
-        desc = f'Type of Service: {tos}\nTTL: {self.ttl}\n'
-        data = f'\nData:\n{self.data}'
+        desc = f'ToS: {tos}\tTTL: {self.ttl}\n'
+        data = f'DATA: {self.data}\n'
         return ids+desc+data
     
     def is_packet(self, pkt):
@@ -410,12 +416,18 @@ class Packet:
         else:
             return False
         
+    def update_ttl(self):
+        self.ttl -= 1
+            
+        
 
 class EpidemicPacket(Packet):
     
     def __init__(self, src_addr:int, ttl=64, data=None):
         Packet.__init__(self, src_addr=src_addr, tos=1, ttl=ttl, data=data) # Epidemic propagation only transmits DATA packets (not SIGNALING)
-        self.protocol = 'epidemic'
+        self.protocol = 'EPIDEMIC'
         
     def __str__(self):
-        return f'Routing protocol: {self.protocol}\n' + Packet.__str__(self)
+        return f'PROTOCOL: {self.protocol}\n' + Packet.__str__(self)
+    
+    
