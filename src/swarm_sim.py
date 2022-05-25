@@ -353,3 +353,69 @@ class Swarm:
         ax.set_title('Propagation at time '+str(t))
         
 #==============================================================================================
+
+class Packet:
+    """
+    Packet object, representing a Network layer message
+    """
+    
+    def __init__(self, src_addr:int, tos:int, dest_addr=None, ttl=64, data=None):
+        """
+        Packet object constructor
+
+        Args:
+            src_addr (int): network address or ID of the sender
+            tos (int): Type of Service, 0 if signaling packet, 1 if data packet
+            dest_addr (int, optional): network address or ID of the destination. If broadcast, defaults to None.
+            ttl (int, optional): Time To Live. Defaults to 64.
+            data (string, optional): information to share. Defaults to None.
+        """
+        self.id = (src_addr, dest_addr, tos) #Packet is identified by the sender & type of service
+        self.src_addr = src_addr
+        self.dest_addr = dest_addr
+        self.tos = tos #Type of Service: 0 (SIGNALING) or 1 (DATA)
+        self.ttl = ttl
+        self.data = data
+        
+    def __str__(self):
+        """
+        Packet object descriptor
+
+        Returns:
+            str: the string description of the packet
+        """
+        dest = self.dest_addr
+        if dest == None:
+            dest = 'BROADCAST'
+        ids = f'Source ID: {self.src_addr}\nDestination ID: {dest}\n'
+        tos = 'SIGNALING'
+        if self.tos == 1:
+            tos = 'DATA'
+        desc = f'Type of Service: {tos}\nTTL: {self.ttl}\n'
+        data = f'\nData:\n{self.data}'
+        return ids+desc+data
+    
+    def is_packet(self, pkt):
+        """
+        Packet comparison
+
+        Args:
+            pkt (Packet): the packet to compare with
+
+        Returns:
+            Bool: True if packets are equal, else False
+        """
+        if pkt.id == self.id:
+            return True 
+        else:
+            return False
+        
+
+class EpidemicPacket(Packet):
+    
+    def __init__(self, src_addr:int, ttl=64, data=None):
+        Packet.__init__(self, src_addr=src_addr, tos=1, ttl=ttl, data=data) # Epidemic propagation only transmits DATA packets (not SIGNALING)
+        self.protocol = 'epidemic'
+        
+    def __str__(self):
+        return f'Routing protocol: {self.protocol}\n' + Packet.__str__(self)
