@@ -122,6 +122,25 @@ class Node:
             self.remove_neighbor(node)
         return 0
     
+    def cluster_coef(self):
+        """
+        Function to compute the clustering coefficient of a node, which is defined as
+        the existing number of edges between the neighbors of a node divided by the maximum
+        possible number of such edges.
+
+        Returns:
+            float: the clustering coefficient of the node between 0 and 1
+        """
+        dv = self.degree()
+        max_edges = dv*(dv-1)/2
+        if max_edges == 0:
+            return 0
+        edges = 0
+        for v in self.neighbors:
+            common_elem = set(v.neighbors).intersection(self.neighbors)
+            edges += len(common_elem)
+        return edges/(2*max_edges)
+    
     def receive(self, pkt):
         self.state = 1
         self.messages.append(pkt)
@@ -233,6 +252,15 @@ class Swarm:
             list: list of k-vicinity values (int)
         """
         return [node.k_vicinity(depth) for node in self.nodes]
+    
+    def cluster_coef(self):
+        """
+        Function to compute the clustering coefficient distribution of the swarm.
+
+        Returns:
+            list: list of clustering coefficient values (float)
+        """
+        return [node.cluster_coef() for node in self.nodes]
     
     def distance_matrix(self):
         """
