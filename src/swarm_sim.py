@@ -262,6 +262,25 @@ class Swarm:
         """
         return [node.cluster_coef() for node in self.nodes]
     
+    def DFSUtil(self, temp, node, visited):
+        visited[node.id] = True
+        temp.append(node.id) # Store the vertex to list
+        for n in node.neighbors:
+            if visited[n.id] == False:
+                temp = self.DFSUtil(temp, n, visited)
+        return temp
+    
+    def connected_components(self):
+        visited = [False]*len(self.nodes)
+        cc = []
+        for node in self.nodes:
+            if visited[node.id]==False:
+                temp = []
+                cc.append(self.DFSUtil(temp, node, visited))
+        print('Number of connected components:', len(cc))
+        return cc
+        
+    
     def distance_matrix(self):
         """
         Function to compute the Euclidean distance matrix of the swarm.
@@ -385,6 +404,19 @@ class Swarm:
         colormap = np.array(['blue','red','green'])
         ax.scatter(x_data, y_data, z_data, c=colormap[node_states])
         ax.set_title('Propagation at time '+str(t))
+    
+    def plot_edges(self):
+        fig = plt.figure(figsize=(12,12))
+        ax = plt.axes(projection='3d')
+
+        x_data = [node.x for node in self.nodes]
+        y_data = [node.y for node in self.nodes]
+        z_data = [node.z for node in self.nodes]
+        ax.scatter(x_data, y_data, z_data, c='blue', s=50)
+
+        for node in self.nodes:
+            for n in node.neighbors:
+                ax.plot([node.x, n.x], [node.y, n.y], [node.z, n.z], c='red')
         
 #==============================================================================================
 
