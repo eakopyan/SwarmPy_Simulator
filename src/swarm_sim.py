@@ -2,6 +2,7 @@ import numpy as np
 from math import dist 
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
+from random import seed, randint
 
 
 #==============================================================================================
@@ -325,6 +326,57 @@ class Swarm:
             if node.id == id:
                 return node
     
+    def random_jump(self, s=1):
+        seed(s)
+        ids =  list(set([randint(0,len(self.nodes)-1) for i in range(s)]))
+        return [self.get_node_by_id(i) for i in ids]
+    
+    def RD_sample(self, s=1, rho=0.33, x=1): 
+        """
+        Rank Degree Algorithm
+        https://d1wqtxts1xzle7.cloudfront.net/48684395/ASONAM_2016_RankDegree-with-cover-page-v2.pdf?Expires=1655818777&Signature=ACc4DhCCMW5E~Hd5GfmzIFkx9Gat1w-Y0mDVQyEkJTujV80tETHOlhPOZVXPyb8EWn7OTHarDn7-3VZixJjU0gyzMoppP3wOrp~M5TGTRGNaI9d9UyaqtgI4QrxkkYYidcS0vfZXS7mRMyeSEpeX2HbFj~PH-yP0Ia8hWwp-VlW5b8fnggA3PLk~uaqV56CkxB8uHXMPCgH9Xv7ziPYrrMyTAz4n2IVxoggd~Q3sPnTkHcyTJ-AlfRqVwpLk8MHyPQsuBNAgrV9~cJ7O71eNMyInklrtjFoeAEhYyYLB8g3h6hn0KJdhgQWoeFqEb-bqY8W8xhfhzZ2iR2F9eH0lWA__&Key-Pair-Id=APKAJLOHF5GGSLRBV4ZA
+
+        Args:
+            s (int, optional): number of initial seeds. Defaults to 1.
+            rho (float, optional): top quartile of node degrees between 0 and 1. Defaults to 0.33.
+            x (int, optional): sample size. Defaults to 1.
+
+        Returns:
+            Swarm: a subgraph of the swarm
+        """
+        seeds = self.random_jump(s) # Initial random seeds
+        sample = Swarm(self.connection_range, nodes=seeds)
+        while len(sample.nodes) < x:
+            new_seeds = []
+            for w in seeds:
+                degrees = {}
+                for v in w.neighbors:
+                    degrees[v] = v.degree()
+                sd = dict(sorted(degrees.items(), reverse=True, key=lambda item: item[1])) # Sort nodes by highest degree
+                new_seeds.extend(list(sd.keys())[:int(np.ceil(len(sd)*rho))]) # Keep nodes with top-rho highest degree
+            for node in list(set(new_seeds)):  # Remove duplicates and add to sample
+                sample.add_node(node)
+            seeds = new_seeds
+            if [n.degree() for n in seeds] == [1]*len(seeds): # If all seeds are leaves
+                seeds = self.random_jump(s) # Perform random jump again
+        return sample
+        
+    def random_sample(self, rho=0.33, x=1): 
+        seeds = self.random_jump(1) # Initial random seed
+        sample = Swarm(self.connection_range, nodes=seeds)
+        while len(sample.nodes) < x:
+            new_seeds = []
+            for w in seeds:
+                neigh = w.neighbors
+                new_seeds.extend(neigh[:int(np.ceil(len(neigh)*rho))]) # Keep first rho nodes
+            for node in list(set(new_seeds)):  # Remove duplicates and add to sample
+                sample.add_node(node)
+            seeds = new_seeds
+            if [n.degree() for n in seeds] == [1]*len(seeds): # If all seeds are leaves
+                seeds = self.random_jump(1) # Perform random jump again
+        return sample
+        
+    
     def reset_propagation(self):
         """
         Function to reset all nodes states to 0 for the simulation of a message propagation and erase message history.
@@ -382,7 +434,6 @@ class Swarm:
             for node in listeners:
                 node.listen_and_retransmit()
 
-        
     def plot(self, t:int):
         """
         Function to create a 3D-plot of the swarm at a given timestamp. 
@@ -405,18 +456,19 @@ class Swarm:
         ax.scatter(x_data, y_data, z_data, c=colormap[node_states])
         ax.set_title('Propagation at time '+str(t))
     
-    def plot_edges(self):
-        fig = plt.figure(figsize=(12,12))
+    def plot_edges(self, n_color='blue', e_color='gray'):
+        fig = plt.figure(figsize=(8,8))
         ax = plt.axes(projection='3d')
 
         x_data = [node.x for node in self.nodes]
         y_data = [node.y for node in self.nodes]
         z_data = [node.z for node in self.nodes]
-        ax.scatter(x_data, y_data, z_data, c='blue', s=50)
+        ax.scatter(x_data, y_data, z_data, c=n_color, s=50)
 
         for node in self.nodes:
             for n in node.neighbors:
-                ax.plot([node.x, n.x], [node.y, n.y], [node.z, n.z], c='red')
+                if n in self.nodes:
+                    ax.plot([node.x, n.x], [node.y, n.y], [node.z, n.z], c=e_color)
         
 #==============================================================================================
 
