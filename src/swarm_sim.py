@@ -2,7 +2,7 @@ import numpy as np
 from math import dist 
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
-from random import seed, randint
+from random import seed, randint, choice
 
 
 #==============================================================================================
@@ -27,6 +27,7 @@ class Node:
         self.y = float(y) 
         self.z = float(z) 
         self.neighbors = [] # List(Node), list of neighbor nodes to the node
+        self.community = -1 # Community ID to which belongs the node
         self.state = 0 # Message propagation state: 0 = no message received, 1 = message bearer, -1 = message transmitted
         self.messages = [] # List of messages received from sources. List of Packet objects
         
@@ -66,6 +67,27 @@ class Node:
         """
         if node in self.neighbors:
             self.neighbors.remove(node)
+            
+    def set_community(self, c):
+        """
+        Function to appoint a community ID to the node.
+
+        Args:
+            c (int): community ID
+        """
+        self.community = c
+        
+    def random_community(self, clist, s=0):
+        """
+        Function to appoint a random community ID from the input list.
+
+        Args:
+            clist (list(int)): list of community IDs
+            s (int, optional): random seed. Defaults to 0.
+        """
+        seed(s)
+        self.set_community(choice(clist))
+        
             
     def degree(self):
         """
@@ -233,6 +255,10 @@ class Swarm:
         if node in self.nodes:
             self.nodes.remove(node)
         
+    def reset_connection(self):
+        for node in self.nodes:
+            node.neighbors = []
+    
     def degree(self):
         """
         Function to compute the degree (aka the number of neighbors) of each node within the swarm.
@@ -241,6 +267,18 @@ class Swarm:
             list: list of node degrees (int)
         """
         return [node.degree() for node in self.nodes]
+    
+    def random_community(self, clist=range(10), s=1):
+        """
+        Function to appoint a random community ID to each node from the input list of IDs.
+
+        Args:
+            clist (list(int)): list of community IDs, defaults to range(10)
+            s (int, optional): seed factor for multiple tries. Defaults to 1.
+        """
+        for i, node in enumerate(self.nodes):
+            node.random_community(clist, s*i)
+        
     
     def k_vicinity(self, depth=1):
         """
@@ -272,6 +310,12 @@ class Swarm:
         return temp
     
     def connected_components(self):
+        """
+        Function to define the connected components in the network, and print their number.
+
+        Returns:
+            cc (List(List(int))): nested list of node ids for each connected component
+        """
         visited = [False]*len(self.nodes)
         cc = []
         for node in self.nodes:
@@ -281,7 +325,6 @@ class Swarm:
         print('Number of connected components:', len(cc))
         return cc
         
-    
     def distance_matrix(self):
         """
         Function to compute the Euclidean distance matrix of the swarm.
