@@ -305,8 +305,9 @@ class Swarm:
         visited[node.id] = True
         temp.append(node.id) # Store the vertex to list
         for n in node.neighbors:
-            if visited[n.id] == False:
-                temp = self.DFSUtil(temp, n, visited)
+            if n in self.nodes:
+                if visited[n.id] == False:
+                    temp = self.DFSUtil(temp, n, visited)
         return temp
     
     def connected_components(self):
@@ -316,7 +317,9 @@ class Swarm:
         Returns:
             cc (List(List(int))): nested list of node ids for each connected component
         """
-        visited = [False]*len(self.nodes)
+        visited = {}
+        for node in self.nodes:
+            visited[node.id] = False
         cc = []
         for node in self.nodes:
             if visited[node.id]==False:
