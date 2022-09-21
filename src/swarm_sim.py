@@ -39,7 +39,7 @@ class Node:
             str: a string description of the node
         """
         nb_neigh = len(self.neighbors)
-        return f"Node ID {self.id} ({self.x},{self.y},{self.z}) has {nb_neigh} neighbor(s)"
+        return f"Node ID {self.id} ({self.x},{self.y},{self.z}) has {nb_neigh} neighbor(s)\tCommunity: {self.community}"
     
     def show_messages(self):
         nb_sig = len([m for m in self.messages if m.tos==0])
@@ -88,6 +88,20 @@ class Node:
         seed(s)
         self.set_community(choice(clist))
         
+    def random_walk(self, s=0):
+        """
+        Random Walk graph sampling
+        Select a random node from neighbors and attach it to the path.
+
+        Args:
+            s (int, optional): Random seed. Defaults to 0.
+
+        Returns:
+            Node: the next hop node
+        """
+        seed(s)
+        idx = randint(0,len(self.neighbors)-1)
+        return self.neighbors[idx]
             
     def degree(self):
         """
@@ -376,6 +390,34 @@ class Swarm:
         seed(s)
         ids =  list(set([randint(0,len(self.nodes)-1) for i in range(s)]))
         return [self.get_node_by_id(i) for i in ids]
+    
+    def MDRW(self, s=1, length=10):
+        """
+        Multi-Dimensional Random Walk graph sampling
+
+        Args:
+            s (int, optional): Number of initial sources, corresponds to the final number of samples. Defaults to 1.
+            length (int, optional): Length of a random walk in terms of number of nodes. Defaults to 10.
+        
+        Returns:
+            swarms (list): list of Swarm objects.
+        """
+        sources = self.random_jump(s) # Initial random sources
+        swarms = []
+        for i,src in enumerate(sources): # Initialize swarms
+            src.set_community(i)
+            swarms[i] = Swarm(self.connection_range, nodes=[src])
+        for i in range(length): # Spread paths to desired length
+            for k in range(len(swarms)):
+                n_i = swarms[k].nodes[-1] # Current node
+                if n_i.degree() > 1: # Not a leaf
+                    n_j = n_i.random_walk(s=i) # Next node
+                else:
+                    n_j = self.random_jump()[0] # If no neighbor, perform random jump in the graph
+                n_j.set_community(n_i.community)
+                swarms[k].add_node(n_j)
+        return swarms
+        
     
     def RD_sample(self, s=1, rho=0.33, x=1): 
         """
