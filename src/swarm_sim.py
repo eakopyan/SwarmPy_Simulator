@@ -388,15 +388,19 @@ class Swarm:
     
     def random_jump(self, s=1):
         seed(s)
-        ids =  list(set([randint(0,len(self.nodes)-1) for i in range(s)]))
+        ids = []
+        while len(ids) != s:
+            src = randint(0,len(self.nodes)-1)
+            if src not in ids:
+                ids.append(src)
         return [self.get_node_by_id(i) for i in ids]
     
-    def MDRW(self, s=1, length=10):
+    def MDRW(self, s=10, length=10):
         """
         Multi-Dimensional Random Walk graph sampling
 
         Args:
-            s (int, optional): Number of initial sources, corresponds to the final number of samples. Defaults to 1.
+            s (int, optional): Number of initial sources, corresponds to the final number of samples. Defaults to 10.
             length (int, optional): Length of a random walk in terms of number of nodes. Defaults to 10.
         
         Returns:
