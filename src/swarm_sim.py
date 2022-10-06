@@ -1,6 +1,7 @@
 from typing import List
 import numpy as np
 import matplotlib.pyplot as plt
+import networkx as nx
 
 from numpy.random import binomial
 from math import dist 
@@ -310,6 +311,21 @@ class Swarm:
         for node in self.nodes:
             node.set_group(-1)
     
+    def swarm_to_nxgraph(self):
+        """
+        Function to convert a Swarm object into a NetworkX Graph. See help(networkx.Graph) for more information.
+
+        Returns:
+            nx.Graph: the converted graph.
+        """
+        G = nx.Graph()
+        G.add_nodes_from([n.id for n in self.nodes])
+        for ni in self.nodes:
+            for nj in self.nodes:
+                if ni.is_neighbor(nj, self.connection_range)==1:
+                    G.add_edge(ni.id,nj.id)
+        return G
+    
     
     #*************** Metrics ******************
     def cluster_coef(self):
@@ -369,6 +385,28 @@ class Swarm:
                     temp = self.DFSUtil(temp, n, visited)
         return temp
     
+    def diameter(self, group):
+        """
+        Function to compute the diameter of the swarm. The swarm is first converted into a nx.Graph object (see help(Swarm.swarm_to_nxgraph)).
+        The diameter of the swarm is defined as the maximum shortest path distance between all pairs of nodes, in terms of number of hops.
+
+        Args:
+            group (Swarm): the list of nodes to take into account.
+
+        Returns:
+            tuple: the diameter of the swarm as (source_id, target_id, diameter).
+        """
+        G = self.swarm_to_nxgraph()
+        node_ids = [n.id for n in group.nodes]
+        max_length = (0,0,0) # Source, target, number of hops
+        for ni in node_ids:
+            for nj in node_ids:
+                if nx.has_path(G, ni, nj):
+                    sp = nx.shortest_path(G, ni, nj)
+                    if len(sp)-1 > max_length[2]:
+                        max_length = (ni, nj, len(sp)-1)
+        return max_length
+    
     def graph_density(self):
         """
         Function to compute the graph density of the swarm. The graph density is defined as the ratio between the number of edges and the maximum
@@ -401,6 +439,26 @@ class Swarm:
             list(int): list of k-vicinity values for each node.
         """
         return [node.k_vicinity(depth) for node in self.nodes]
+    
+    def shortest_paths_lengths(self, group):
+        """
+        Function to compute all the shortest paths between each pair of nodes (Dijkstra algorithm) and return their length. The swarm is 
+        first converted into a nx.Graph object (see help(Swarm.swarm_to_nxgraph)).
+
+        Args:
+            group (Swarm): the list of nodes to take into account.
+
+        Returns:
+            list(int): the list of the shortest path lengths.
+        """
+        G = self.swarm_to_nxgraph()
+        node_ids = [n.id for n in group.nodes]
+        lengths = []
+        for ni in node_ids:
+            for nj in node_ids:
+                if nx.has_path(G, ni, nj) and nj != ni:
+                    lengths.append(nx.shortest_path_length(G, source=ni, target=nj))
+        return lengths 
     
     
     #************** Sampling algorithms ****************
