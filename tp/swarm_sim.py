@@ -543,9 +543,17 @@ class Swarm:
         Args:
             clist (list(int)): list of group IDs. Defaults to range(10).
             s (int, optional): random seed. Defaults to 1.
+
+        Returns:
+            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm sample.
         """
+        swarms = {}
         for i, node in enumerate(self.nodes):
             node.random_group(clist, s*i)
+        for i in clist: # Separate into swarms
+            swarms[i] = Swarm(self.connection_range,
+                                nodes=[n for n in self.nodes if n.group==i])
+        return swarms
             
     def random_jump(self, s=1, overlap=False):
         """
@@ -566,12 +574,11 @@ class Swarm:
     
 
     #************** Plot functions **************
-    def plot_nodes(self, t:int, n_color='blue'):
+    def plot_nodes(self, n_color='blue'):
         """
         Function to create a 3D-plot of the swarm at a given timestamp. 
 
         Args:
-            t (int): timestamp of the simulation.
             n_color (str, optional) : Nodes color. Defaults to 'blue'.
         """
         fig = plt.figure(figsize=(8,8))
@@ -580,7 +587,6 @@ class Swarm:
         y_data = [node.y for node in self.nodes]
         z_data = [node.z for node in self.nodes]
         ax.scatter(x_data, y_data, z_data, c=n_color, s=50)
-        ax.set_title('Swarm topology at time '+str(t))
     
     def plot_edges(self, n_color='blue', e_color='gray'):
         """
