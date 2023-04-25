@@ -32,6 +32,7 @@ class Node:
         self.z = float(z) 
         self.neighbors = [] # List(Node), list of neighbor nodes to the node
         self.group = -1 # Group ID to which belongs the node
+        self.cache = [] # List(Packet), list of packets that went through
         
     def __str__(self):
         """
@@ -203,6 +204,39 @@ class Node:
             search_list = [n for n in self.neighbors if n.group==-1]
         return choice(search_list)
     
+    
+    #*************** Routing ***************
+    def add_to_cache(self, pkt):
+        if pkt.is_in(self.cache)==False:
+            pkt.add_to_route(self.id)
+            self.cache.append(pkt)
+            return 1
+        else:
+            return 0
+    
+    def show_cache(self):
+        str_c = []
+        if self.cache != []:
+            str_c = [(pkt.id, pkt.src_id, pkt.dst_id) for pkt in self.cache]
+        print(str_c)
+            
+    def remove_from_cache(self, pkt):
+        if self.cache != []:
+            if pkt.is_in(self.cache):
+                self.cache.remove(pkt)
+                
+    def clear_cache(self):
+        self.cache = []
+                
+    def broadcast(self, pkt):
+        transmitted_to = []
+        if self.neighbors != []:
+            copy = Packet(pkt.id, pkt.src_id, pkt.dst_id)
+            for n in self.neighbors:
+                tr = n.add_to_cache(copy)
+                if tr == 1:
+                    transmitted_to.append(n.id)
+        return transmitted_to
     
 #==============================================================================================
 
@@ -599,4 +633,83 @@ class Swarm:
             for n in node.neighbors:
                 if n in self.nodes:
                     ax.plot([node.x, n.x], [node.y, n.y], [node.z, n.z], c=e_color)
+                    
+                    
+    #************** Routing **************
+    def clear_caches(self):
+        for n in self.nodes:
+            n.clear_cache()
+            
+    def copy_caches(self):
+        cache_dict = {}
+        for n in self.nodes:
+            cache_dict[n.id] = n.cache
+        return cache_dict
+    
+    def flooding(self, pkt, pkt_bearers):
+        new_bearers = []
+        for nid in pkt_bearers:
+            node = self.get_node_by_id(nid)
+            transmitted_to = node.broadcast(pkt)  
+            new_bearers.extend(transmitted_to)
+        new_bearers = list(set(new_bearers))
+        return new_bearers
+    
+    def update_caches(self, cache_dict):
+        for n in self.nodes:
+            n.cache = cache_dict[n.id]
+            
+                    
+#==============================================================================================
+
+class Packet:
+    
+    def __init__(self, id=0, src_id=-1, dst_id=-1):
+        self.id = id
+        self.src_id = src_id
+        self.dst_id = dst_id 
+        self.route = [] # List(int) of node ids
+        
+    def __str__(self):
+        location = self.route[-1]
+        return f"Packet ID {self.id} \nFrom: {self.src_id} \tTo: {self.dst_id} \tCurrently at: {location}"
+    
+    
+    #********************** Basic functions **********************  
+    def traceroute(self):
+        return self.route 
+    
+    def reset_route(self):
+        self.route = []
+        
+    def add_to_route(self, nid:int):
+        self.route.append(nid)
+        
+    def last_sender(self):
+        return self.route[-2] # Last element is the current node
+        
+    def count_hops(self):
+        return len(self.route)-1 # Src and dst are both counted in
+    
+    def is_packet(self, pkt2):
+        return self.id==pkt2.id and self.src_id==pkt2.src_id and self.dst_id==pkt2.dst_id
+    
+    def is_in(self, cache):
+        for c in cache:
+            if self.is_packet(c):
+                return True 
+        return False
+    
+    def reached_destination(self):
+        return self.route[-1] == self.dst_id
+    
+    def has_reached(self, swarm, node_ids):
+        for nid in node_ids:
+            node = swarm.get_node_by_id(nid)
+            if self.is_in(node.cache)==False:
+                return False
+        return True
+    
+    
+
         
