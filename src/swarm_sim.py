@@ -432,13 +432,13 @@ class Swarm:
         """
         G = self.swarm_to_nxgraph()
         node_ids = [n.id for n in group.nodes]
-        max_length = (0,0,0) # Source, target, number of hops
+        max_length = (0,0,0) # Source, target, path_length
         for ni in node_ids:
             for nj in node_ids:
                 if nx.has_path(G, ni, nj):
-                    sp = nx.shortest_path(G, ni, nj)
-                    if len(sp)-1 > max_length[2]:
-                        max_length = (ni, nj, len(sp)-1)
+                    spl = nx.shortest_path_length(G, ni, nj)
+                    if spl > max_length[2]:
+                        max_length = (ni, nj, spl)
         return max_length
     
     def graph_density(self):
