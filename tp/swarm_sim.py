@@ -40,7 +40,8 @@ class Node:
             str: a string description of the node
         """
         nb_neigh = len(self.neighbors)
-        return f"Node ID {self.id} ({self.x},{self.y},{self.z}) has {nb_neigh} neighbor(s)\tGroup: {self.group}"
+        x,y,z = round(self.x,1), round(self.y,1), round(self.z,1)
+        return f"Node ID {self.id} ({x}, {y}, {z}) has {nb_neigh} neighbor(s)\tGroup: {self.group}"
     
     #*************** Common operations ****************
     def add_neighbor(self, node):
