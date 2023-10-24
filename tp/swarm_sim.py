@@ -278,7 +278,7 @@ class Swarm:
             connection_range (int, optional): the connection range of the swarm. Defaults to None.
 
         Returns:
-            list(list(int)): the 2-dimensional neighbor matrix formatted as matrix[node1][node2] = neighbor.
+            list(list(int)): the 2-dimensional neighbor matrix formatted as matrix[node1][node2] = adjacency.
         """
         matrix = []
         if not connection_range:
@@ -465,8 +465,8 @@ class Swarm:
     def FFD(self, n=10, p=0.7, s=1, overlap=False):
         """
         Function to perform graph division by the Forest Fire algorithm. 
-        In the initial phase, n nodes are selected as "fire sources". Then, the fire spreads to the neighbors with a probability of p.
-        We finally obtain n subgraphs defined as the nodes burned by each source.
+        In the initial phase, n nodes are selected as "fire sources". Then, the fire spreads to the neighbors with the probability p.
+        We finally obtain n groups defined as the nodes burned by each source.
 
         Args:
             n (int, optional): the initial number of sources. Defaults to 10.
@@ -475,7 +475,7 @@ class Swarm:
             overlap (bool, optional): if True, node groups are allowed to overlap. Defaults to False.
 
         Returns:
-            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm subgraph.
+            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm group.
         """
         sources = sample(self.nodes, n) # Initial random sources
         swarms = {} # Dict(group ID:Swarm)
@@ -507,7 +507,7 @@ class Swarm:
         Function to perform graph division by the Multi-Dimensional Random Walk algorithm.
         In the initial phase, n nodes are selected as sources. Then they all perform random walks in parallel (see help(Node.random_walk) for
         more information). 
-        We finally obtain n subgraphs defined as the random walks from each source.
+        We finally obtain n groups defined as the random walks from each source.
 
         Args:
             n (int, optional): the initial number of sources. Defaults to 10.
@@ -515,7 +515,7 @@ class Swarm:
             overlap (bool, optional): if True, node groups are allowed to overlap. Defaults to False.
 
         Returns:
-            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm subgraph.
+            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm group.
         """
         sources = sample(self.nodes, n) # Initial random sources
         swarms = {} # Dict(group ID:Swarm)
@@ -539,14 +539,14 @@ class Swarm:
     def RND(self, n=10, s=1):
         """
         Function to perform graph division by the Random Node Division algorithm.
-        Each node choses a random group ID from the list given as parameter.
+        Each node choses a random group ID from the range given as parameter.
 
         Args:
-            n (int, optional): the number of subgraphs. Defaults to 10.
+            n (int, optional): the number of groups. Defaults to 10.
             s (int, optional): the random seed. Defaults to 1.
 
         Returns:
-            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm subgraph.
+            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm group.
         """
         swarms = {}
         for i, node in enumerate(self.nodes):
