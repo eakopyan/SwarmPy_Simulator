@@ -496,7 +496,7 @@ class Swarm:
     
     
     #************** Sampling algorithms ****************
-    def ForestFire(self, n=10, p=0.7, s=1, overlap=False):
+    def FFD(self, n=10, p=0.7, s=1, overlap=False):
         """
         Function to perform graph sampling by the Forest Fire algorithm. 
         In the initial phase, n nodes are selected as "fire sources". Then, the fire spreads to the neighbors with a probability of p.
@@ -570,17 +570,25 @@ class Swarm:
                 free_nodes.remove(n_j)
         return swarms
     
-    def RNS(self, clist=range(10), s=1):
+    def RND(self, n=10, s=1):
         """
-        Function to perform graph sampling by the Random Node Sampling algorithm.
-        Each node choses a random group ID from the list given as parameter.
+        Function to perform graph division by the Random Node Division algorithm.
+        Each node choses a random group ID from the range given as parameter.
 
         Args:
-            clist (list(int)): list of group IDs. Defaults to range(10).
-            s (int, optional): random seed. Defaults to 1.
+            n (int, optional): the number of groups. Defaults to 10.
+            s (int, optional): the random seed. Defaults to 1.
+
+        Returns:
+            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm group.
         """
+        swarms = {}
         for i, node in enumerate(self.nodes):
-            node.random_group(clist, s*i)
+            node.random_group(range(n), s*i)
+        for i in range(n): # Separate into swarms
+            swarms[i] = Swarm(self.connection_range,
+                                nodes=[node for node in self.nodes if node.group==i])
+        return swarms
             
     def random_jump(self, s=1, overlap=False):
         """
@@ -635,80 +643,6 @@ class Swarm:
                     ax.plot([node.x, n.x], [node.y, n.y], [node.z, n.z], c=e_color)
                     
                     
-    #************** Routing **************
-    def clear_caches(self):
-        for n in self.nodes:
-            n.clear_cache()
-            
-    def copy_caches(self):
-        cache_dict = {}
-        for n in self.nodes:
-            cache_dict[n.id] = n.cache
-        return cache_dict
-    
-    def flooding(self, pkt, pkt_bearers):
-        new_bearers = []
-        for nid in pkt_bearers:
-            node = self.get_node_by_id(nid)
-            transmitted_to = node.broadcast(pkt)  
-            new_bearers.extend(transmitted_to)
-        new_bearers = list(set(new_bearers))
-        return new_bearers
-    
-    def update_caches(self, cache_dict):
-        for n in self.nodes:
-            n.cache = cache_dict[n.id]
-            
-                    
-#==============================================================================================
-
-class Packet:
-    
-    def __init__(self, id=0, src_id=-1, dst_id=-1):
-        self.id = id
-        self.src_id = src_id
-        self.dst_id = dst_id 
-        self.route = [] # List(int) of node ids
-        
-    def __str__(self):
-        location = self.route[-1]
-        return f"Packet ID {self.id} \nFrom: {self.src_id} \tTo: {self.dst_id} \tCurrently at: {location}"
-    
-    
-    #********************** Basic functions **********************  
-    def traceroute(self):
-        return self.route 
-    
-    def reset_route(self):
-        self.route = []
-        
-    def add_to_route(self, nid:int):
-        self.route.append(nid)
-        
-    def last_sender(self):
-        return self.route[-2] # Last element is the current node
-        
-    def count_hops(self):
-        return len(self.route)-1 # Src and dst are both counted in
-    
-    def is_packet(self, pkt2):
-        return self.id==pkt2.id and self.src_id==pkt2.src_id and self.dst_id==pkt2.dst_id
-    
-    def is_in(self, cache):
-        for c in cache:
-            if self.is_packet(c):
-                return True 
-        return False
-    
-    def reached_destination(self):
-        return self.route[-1] == self.dst_id
-    
-    def has_reached(self, swarm, node_ids):
-        for nid in node_ids:
-            node = swarm.get_node_by_id(nid)
-            if self.is_in(node.cache)==False:
-                return False
-        return True
     
     
 
