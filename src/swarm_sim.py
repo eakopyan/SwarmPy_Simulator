@@ -609,26 +609,19 @@ class Swarm:
     
 
     #************** Plot functions **************
-    def plot(self, t:int):
+    def plot_nodes(self, n_color='blue'):
         """
         Function to create a 3D-plot of the swarm at a given timestamp. 
-        Visualizes the message propagation with 3 colors: 
-            blue: the node has no message (state 0)
-            red: the node carries the message (state 1)
-            green: the node has transmitted its message (state -1)
 
         Args:
-            t (int): timestamp of the simulation
+            n_color (str, optional) : Nodes color. Defaults to 'blue'.
         """
         fig = plt.figure(figsize=(8,8))
         ax = plt.axes(projection='3d')
         x_data = [node.x for node in self.nodes]
         y_data = [node.y for node in self.nodes]
         z_data = [node.z for node in self.nodes]
-        node_states = np.array([node.state for node in self.nodes])
-        colormap = np.array(['blue','red','green'])
-        ax.scatter(x_data, y_data, z_data, c=colormap[node_states])
-        ax.set_title('Propagation at time '+str(t))
+        ax.scatter(x_data, y_data, z_data, c=n_color, s=50)
     
     def plot_edges(self, n_color='blue', e_color='gray'):
         fig = plt.figure(figsize=(8,8))

@@ -13,8 +13,8 @@ from swarm_sim import *
 #========================== GLOBAL VARIABLES ==============================
 PATH = 'C:\\Users\\EAkopyan\\Documents\\SwarmPy_Simulator-3'
 
-CONNECTION_RANGE = 30000
-NB_NODES = 100
+CONNECTION_RANGE = 30 # km
+NB_NODES = 50
 NB_REPETITIONS = 30
 
 
@@ -177,7 +177,7 @@ def RND(swarm, clist=range(10), s=1):
 #============================ INITIALIZE TOPOLOGY ==============================
 print('Importing topology...')
 topo_path = 'data\\Topologies'
-file = 'topology_high.csv'
+file = 'topology_connected_sat50.csv'
 df_low = pd.read_csv(os.path.join(PATH, topo_path, file), sep=',', header=0, index_col='sat_id')
 
 swarm = Swarm(
@@ -203,7 +203,7 @@ data_dict = {
 }
 
 # ========================== CHOICE OF ALGORITHM HERE =============================
-algo = 'MDRW'
+algo = 'RND'
 print('\nPerforming graph division:', algo, '\t\tNumber of repetitions:', NB_REPETITIONS)
 print('Initializing redundancy analysis...')
 
@@ -217,7 +217,7 @@ with tqdm(total=NB_REPETITIONS, desc='Random iterations') as pbar:
     for rep in range(NB_REPETITIONS):
         swarm.reset_groups()
         # =================== CHANGE ALGORITHM HERE ==========================
-        groups = MDRW(swarm, s=rep)
+        groups = RND(swarm, s=rep)
 
         visited_pairs = []
         total_spl = 0
@@ -270,6 +270,6 @@ print('\tAverage network efficiency: ' + str(round(np.mean(network_efficiencies)
 
 
 export_path = 'output\\data'
-filename = 'path_redundancy_'+algo+'_high_rep30.csv'
+filename = 'path_redundancy_'+algo+'_connected_sat50_rep'+str(NB_REPETITIONS)+'.csv'
 df.to_csv(os.path.join(PATH, export_path, filename), sep=',')
 print('\nExporting to', os.path.join(PATH, export_path, filename))
