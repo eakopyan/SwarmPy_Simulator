@@ -205,39 +205,6 @@ class Node:
         return choice(search_list)
     
     
-    #*************** Routing ***************
-    def add_to_cache(self, pkt):
-        if pkt.is_in(self.cache)==False:
-            pkt.add_to_route(self.id)
-            self.cache.append(pkt)
-            return 1
-        else:
-            return 0
-    
-    def show_cache(self):
-        str_c = []
-        if self.cache != []:
-            str_c = [(pkt.id, pkt.src_id, pkt.dst_id) for pkt in self.cache]
-        print(str_c)
-            
-    def remove_from_cache(self, pkt):
-        if self.cache != []:
-            if pkt.is_in(self.cache):
-                self.cache.remove(pkt)
-                
-    def clear_cache(self):
-        self.cache = []
-                
-    def broadcast(self, pkt):
-        transmitted_to = []
-        if self.neighbors != []:
-            copy = Packet(pkt.id, pkt.src_id, pkt.dst_id)
-            for n in self.neighbors:
-                tr = n.add_to_cache(copy)
-                if tr == 1:
-                    transmitted_to.append(n.id)
-        return transmitted_to
-    
 #==============================================================================================
 
 class Swarm:
