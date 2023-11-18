@@ -11,11 +11,13 @@ from swarm_sim import *
 
 
 #========================== GLOBAL VARIABLES ==============================
-PATH = 'C:\\Users\\EAkopyan\\Documents\\SwarmPy_Simulator-3'
+PATH_MALTE = 'C:\\Users\\EAkopyan\\Documents\\SwarmPy_Simulator-3'
+PATH_COLIBRI = 'C:\\Users\\ankoc\\Documents\\Thèse\\SwarmPy_Simulator'
 
 CONNECTION_RANGE = 30 # km
 NB_NODES = 50
 NB_REPETITIONS = 30
+PATH = PATH_COLIBRI
 
 
 #============================= FUNCTIONS ==================================
