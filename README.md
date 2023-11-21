@@ -1,7 +1,9 @@
 # Before starting
 
 ## Install the virtual environment
-Open the VS Code terminal and type:
+First, make sure you create a virtual environment for this project (use `venv` preferably).
+
+Then, open the VS Code terminal and type:
 
 `.\.venv\Scripts\Activate.ps1`
 
