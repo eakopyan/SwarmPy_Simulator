@@ -11,7 +11,7 @@ from swarm_sim import *
 
 
 #========================== GLOBAL VARIABLES ==============================
-PATH = 'C:\\Users\\EAkopyan\\Documents\\SwarmPy_Simulator-3'
+PATH = 'C:\\Users\\EAkopyan\\Documents\\SwarmPy_Simulator'
 
 CONNECTION_RANGE = 30000
 NB_NODES = 100
@@ -177,7 +177,7 @@ def RND(swarm, clist=range(10), s=1):
 #============================ INITIALIZE TOPOLOGY ==============================
 print('Importing topology...')
 topo_path = 'data\\Topologies'
-file = 'topology_high.csv'
+file = 'topology_low.csv'
 df_low = pd.read_csv(os.path.join(PATH, topo_path, file), sep=',', header=0, index_col='sat_id')
 
 swarm = Swarm(
@@ -203,7 +203,7 @@ data_dict = {
 }
 
 # ========================== CHOICE OF ALGORITHM HERE =============================
-algo = 'MDRW'
+algo = 'FFD'
 print('\nPerforming graph division:', algo, '\t\tNumber of repetitions:', NB_REPETITIONS)
 print('Initializing redundancy analysis...')
 
@@ -217,29 +217,34 @@ with tqdm(total=NB_REPETITIONS, desc='Random iterations') as pbar:
     for rep in range(NB_REPETITIONS):
         swarm.reset_groups()
         # =================== CHANGE ALGORITHM HERE ==========================
-        groups = MDRW(swarm, s=rep)
+        groups = FFD(swarm, s=rep)
 
         visited_pairs = []
         total_spl = 0
+        pair_efficiency = 0.0
+        
         for group_id, group_nodes in groups.items():
             for ni in group_nodes:
                 src_id = ni.id
                 for nj in group_nodes:
                     dst_id = nj.id
-                    if dst_id != src_id and set((src_id,dst_id)) not in visited_pairs and nx.has_path(graph, src_id, dst_id):
-                        visited_pairs.append(set((src_id,dst_id)))
-                        spl = nx.shortest_path_length(graph, source=src_id, target=dst_id)
-                        shortest_paths = nx.all_shortest_paths(graph, src_id, dst_id)
-                        list_paths = list(shortest_paths)
-                        disparity = pair_disparity(list_paths, spl)
-                        total_spl += spl
-                
-                        add_data_row(data_dict, 
-                                    src=src_id, 
-                                    dst=dst_id, 
-                                    nb_sp=len(list_paths),
-                                    spl=spl, 
-                                    disp=disparity)
+                    if dst_id != src_id and set((src_id,dst_id)) not in visited_pairs:
+                        pair_efficiency += nx.efficiency(graph, src_id, dst_id)
+                        if nx.has_path(graph, src_id, dst_id):
+                            visited_pairs.append(set((src_id,dst_id)))
+                            spl = nx.shortest_path_length(graph, source=src_id, target=dst_id)
+                            shortest_paths = nx.all_shortest_paths(graph, src_id, dst_id)
+                            list_paths = list(shortest_paths)
+                            disparity = pair_disparity(list_paths, spl)
+                            total_spl += spl
+                            
+                            add_data_row(data_dict, 
+                                        src=src_id, 
+                                        dst=dst_id, 
+                                        nb_sp=len(list_paths),
+                                        spl=spl, 
+                                        disp=disparity)
+                            
         nb_max = origin_destination_pairs(groups)
         
         connectivities.append(len(visited_pairs)/nb_max)
@@ -248,7 +253,7 @@ with tqdm(total=NB_REPETITIONS, desc='Random iterations') as pbar:
         nb_critical_nodes.append(len(df_group[df_group['BC']>=0.05]['BC']))
         
         routing_costs.append(total_spl*2)
-        network_efficiencies.append((1/total_spl) * nb_max)
+        network_efficiencies.append(pair_efficiency/nb_max)
         
         pbar.update(1)
 
@@ -270,6 +275,6 @@ print('\tAverage network efficiency: ' + str(round(np.mean(network_efficiencies)
 
 
 export_path = 'output\\data'
-filename = 'path_redundancy_'+algo+'_high_rep30.csv'
+filename = 'path_redundancy_'+algo+'_low_rep'+str(NB_REPETITIONS)+'.csv'
 df.to_csv(os.path.join(PATH, export_path, filename), sep=',')
 print('\nExporting to', os.path.join(PATH, export_path, filename))

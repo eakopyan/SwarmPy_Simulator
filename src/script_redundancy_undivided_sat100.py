@@ -11,8 +11,8 @@ from swarm_sim import *
 #========================== GLOBAL VARIABLES ==============================
 PATH = 'C:\\Users\\EAkopyan\\Documents\\SwarmPy_Simulator'
 
-CONNECTION_RANGE = 30 # km
-NB_NODES = 50
+CONNECTION_RANGE = 30000 # m
+NB_NODES = 100
 
 
 #============================= FUNCTIONS ==================================
@@ -73,7 +73,7 @@ def pair_disparity(shortest_paths:list, spl:int):
 #============================ INITIALIZE TOPOLOGY ==============================
 print('Importing topology...')
 topo_path = 'data\\Topologies'
-file = 'topology_connected_sat50.csv'
+file = 'topology_low.csv'
 df_low = pd.read_csv(os.path.join(PATH, topo_path, file), sep=',', header=0, index_col='sat_id')
 
 swarm = Swarm(
@@ -107,7 +107,6 @@ modularities = []
 nb_critical_nodes = []
 routing_costs = []
 network_efficiencies = []
-
 
 visited_pairs = []
 total_spl = 0
@@ -158,6 +157,6 @@ print('\tAverage network efficiency: ' + str(round(np.mean(network_efficiencies)
 
 
 export_path = 'output\\data'
-filename = 'path_redundancy_undivided_connected_sat50.csv'
+filename = 'path_redundancy_undivided_low_sat100.csv'
 df.to_csv(os.path.join(PATH, export_path, filename), sep=',')
 print('\nExporting to', os.path.join(PATH, export_path, filename))
