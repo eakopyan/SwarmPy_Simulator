@@ -11,13 +11,12 @@ from swarm_sim import *
 
 
 #========================== GLOBAL VARIABLES ==============================
-PATH_MALTE = 'C:\\Users\\EAkopyan\\Documents\\SwarmPy_Simulator'
-PATH_COLIBRI = 'C:\\Users\\ankoc\\Documents\\Thèse\\SwarmPy_Simulator'
+TOPO_PATH = 'data\\Topologies'
+EXPORT_PATH = 'output\\data'
 
 CONNECTION_RANGE = 30 # km
 NB_NODES = 50
 NB_REPETITIONS = 30
-PATH = PATH_MALTE
 
 
 #============================= FUNCTIONS ==================================
@@ -178,9 +177,8 @@ def RND(swarm, clist=range(10), s=1):
 
 #============================ INITIALIZE TOPOLOGY ==============================
 print('Importing topology...')
-topo_path = 'data\\Topologies'
 file = 'topology_connected_sat50.csv'
-df_low = pd.read_csv(os.path.join(PATH, topo_path, file), sep=',', header=0, index_col='sat_id')
+df_low = pd.read_csv(os.path.join(TOPO_PATH, file), sep=',', header=0, index_col='sat_id')
 
 swarm = Swarm(
     connection_range=CONNECTION_RANGE,
@@ -276,7 +274,6 @@ print('\tAverage routing cost: ' + str(int(np.mean(routing_costs)))+' transmissi
 print('\tAverage network efficiency: ' + str(round(np.mean(network_efficiencies)*100, 1))+'%')
 
 
-export_path = 'output\\data'
 filename = 'path_redundancy_'+algo+'_connected_sat50_rep'+str(NB_REPETITIONS)+'.csv'
-df.to_csv(os.path.join(PATH, export_path, filename), sep=',')
-print('\nExporting to', os.path.join(PATH, export_path, filename))
+df.to_csv(os.path.join(EXPORT_PATH, filename), sep=',')
+print('\nExporting to', os.path.join(EXPORT_PATH, filename))
