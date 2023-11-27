@@ -19,6 +19,7 @@ CONNECTION_RANGE = 30 # km
 NB_NODES = 50
 DURATION = 8641 # Number of data rows, not time!
 REVOLUTION = 1800 # Number of data rows
+SAMPLE_STEP = 10 # Take one out of 10 samples (alleviates calculations)
 
 
 #============================= FUNCTIONS ==================================
@@ -134,8 +135,8 @@ print('\nNo graph division here.')
 
 nb_max = origin_destination_pairs()
 
-with tqdm(total=REVOLUTION, desc='Temporal evolution') as pbar:
-    for t in range(REVOLUTION):
+with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution') as pbar:
+    for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
         swarm = swarm_data[t]
         graph = topo_graphs[t]
 
@@ -186,6 +187,6 @@ with tqdm(total=REVOLUTION, desc='Temporal evolution') as pbar:
 results_df = pd.DataFrame(final_data)
 print(results_df.head())
 
-filename = 'sat50_temporal_undivided.csv'
+filename = 'sat50_temporal_undivided_sampled_'+str(SAMPLE_STEP)+'.csv'
 print('\nExporting to', os.path.join(EXPORT_PATH, filename))
 results_df.to_csv(os.path.join(EXPORT_PATH, filename), sep=',')

@@ -21,6 +21,7 @@ CONNECTION_RANGE = 30 # km
 NB_NODES = 50
 DURATION = 8641 # Number of data rows, not time!
 REVOLUTION = 1800 # Number of data rows
+SAMPLE_STEP = 10 # Take one out of 10 samples (alleviates calculations)
 
 
 #============================= FUNCTIONS ==================================
@@ -266,8 +267,8 @@ for rep in range(NB_REPETITIONS):
     for node in swarm_data[0].nodes:
         group_assignment[node.id] = node.group
 
-    with tqdm(total=REVOLUTION, desc='Temporal evolution '+str(rep)) as pbar:
-        for t in range(REVOLUTION):
+    with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution') as pbar:
+        for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
             swarm = swarm_data[t]
             graph = topo_graphs[t]
 
@@ -319,6 +320,6 @@ for rep in range(NB_REPETITIONS):
 results_df = pd.DataFrame(final_data)
 print(results_df.head())
 
-filename = 'sat50_temporal_'+algo+'_rep'+str(NB_REPETITIONS)+'.csv'
+filename = 'sat50_temporal_'+algo+'_sampled_'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
 print('\nExporting to', os.path.join(EXPORT_PATH, filename))
 results_df.to_csv(os.path.join(EXPORT_PATH, filename), sep=',')
