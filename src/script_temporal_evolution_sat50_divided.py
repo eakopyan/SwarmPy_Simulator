@@ -267,7 +267,7 @@ for rep in range(NB_REPETITIONS):
     for node in swarm_data[0].nodes:
         group_assignment[node.id] = node.group
 
-    with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution') as pbar:
+    with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution '+str(rep)) as pbar:
         for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
             swarm = swarm_data[t]
             graph = topo_graphs[t]
