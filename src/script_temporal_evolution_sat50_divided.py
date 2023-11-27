@@ -15,13 +15,13 @@ PATH = 'data\\swarm-50-sats-scenario\\coords_v1_if_LLO-'
 EXPORT_PATH = 'output\\data'
 ROW_DATA = 7
 
-NB_REPETITIONS = 1
+NB_REPETITIONS = 30
+SAMPLE_STEP = 12 # Take one out of x samples (alleviates calculations)
 
 CONNECTION_RANGE = 30 # km
 NB_NODES = 50
 DURATION = 8641 # Number of data rows, not time!
 REVOLUTION = 1800 # Number of data rows
-SAMPLE_STEP = 10 # Take one out of 10 samples (alleviates calculations)
 
 
 #============================= FUNCTIONS ==================================
@@ -320,6 +320,6 @@ for rep in range(NB_REPETITIONS):
 results_df = pd.DataFrame(final_data)
 print(results_df.head())
 
-filename = 'sat50_temporal_'+algo+'_sampled_'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
+filename = 'sat50_temporal_'+algo+'_sampled'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
 print('\nExporting to', os.path.join(EXPORT_PATH, filename))
 results_df.to_csv(os.path.join(EXPORT_PATH, filename), sep=',')
