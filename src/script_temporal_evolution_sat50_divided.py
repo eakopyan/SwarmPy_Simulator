@@ -255,13 +255,13 @@ final_data = {
     'Efficiency': []
 }
 
-algo = 'RND' # <==================== ALGO CHOICE 
+algo = 'FFD' # <==================== ALGO CHOICE 
 print('\nPerforming graph division:', algo, '\t\tNumber of repetitions:', NB_REPETITIONS)
 
 
 for rep in range(NB_REPETITIONS):
     swarm_data[0].reset_groups()
-    groups = RND(swarm_data[0], s=rep, by_id=True) # <==================== ALGO CHOICE 
+    groups = FFD(swarm_data[0], s=rep, by_id=True) # <==================== ALGO CHOICE 
     nb_max = origin_destination_pairs(groups)
     group_assignment = {}
     for node in swarm_data[0].nodes:
