@@ -129,7 +129,7 @@ final_data = {
     'Efficiency': []
 }
 
-print('\nNo graph division here.')
+print('\nNo graph division here.\n')
 
 
 nb_max = origin_destination_pairs()
@@ -139,7 +139,7 @@ with tqdm(total=REVOLUTION, desc='Temporal evolution') as pbar:
         swarm = swarm_data[t]
         graph = topo_graphs[t]
 
-        visited_pairs, isl = [], []
+        visited_pairs, paths = [], []
         redundancies = []
         disparities = []
         total_spl = 0
@@ -152,18 +152,17 @@ with tqdm(total=REVOLUTION, desc='Temporal evolution') as pbar:
                     pair_red = 0
                     pair_efficiency += nx.efficiency(graph, src_id, dst_id)
                     if nx.has_path(graph, src_id, dst_id):
-                        isl.append(set((src_id,dst_id))) 
+                        paths.append(set((src_id,dst_id))) 
                         spl = nx.shortest_path_length(graph, source=src_id, target=dst_id)
-                        shortest_paths = nx.all_shortest_paths(graph, src_id, dst_id)
-                        list_paths = list(shortest_paths)
-                        pair_red += len(list_paths)
-                        pair_disp = pair_disparity(list_paths, spl)
+                        shortest_paths = list(nx.all_shortest_paths(graph, src_id, dst_id))
+                        pair_red += len(shortest_paths)
+                        pair_disp = pair_disparity(shortest_paths, spl)
                         total_spl += spl
 
                         redundancies.append(pair_red)
                         disparities.append(pair_disp)
 
-        con = len(isl)/nb_max
+        con = len(paths)/nb_max
         mod = modularity(graph)
         df_bc = pd.DataFrame(swarm_betweeness_centrality(graph))
         crit = len(df_bc[df_bc['BC']>=0.05]['BC'])
@@ -185,6 +184,7 @@ with tqdm(total=REVOLUTION, desc='Temporal evolution') as pbar:
 #=============================== EXPORTING RESULTS ============================
 results_df = pd.DataFrame(final_data)
 print(results_df.head())
+print(results_df.shape[0], 'rows')
 
 filename = 'sat50_temporal_undivided.csv'
 print('\nExporting to', os.path.join(EXPORT_PATH, filename))
