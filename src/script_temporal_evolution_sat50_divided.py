@@ -15,7 +15,8 @@ PATH = 'data\\swarm-50-sats-scenario\\coords_v1_if_LLO-'
 EXPORT_PATH = 'output\\data'
 ROW_DATA = 7
 
-NB_REPETITIONS = 1
+NB_REPETITIONS = 30
+SAMPLE_STEP = 12 # Take one out of x samples (alleviates calculations)
 
 CONNECTION_RANGE = 30 # km
 NB_NODES = 50
@@ -254,20 +255,20 @@ final_data = {
     'Efficiency': []
 }
 
-algo = 'MDRW' # <==================== ALGO CHOICE 
+algo = 'FFD' # <==================== ALGO CHOICE 
 print('\nPerforming graph division:', algo, '\t\tNumber of repetitions:', NB_REPETITIONS)
 
 
 for rep in range(NB_REPETITIONS):
     swarm_data[0].reset_groups()
-    groups = MDRW(swarm_data[0], s=rep, by_id=True) # <==================== ALGO CHOICE 
+    groups = FFD(swarm_data[0], s=rep, by_id=True) # <==================== ALGO CHOICE 
     nb_max = origin_destination_pairs(groups)
     group_assignment = {}
     for node in swarm_data[0].nodes:
         group_assignment[node.id] = node.group
 
-    with tqdm(total=REVOLUTION, desc='Temporal evolution '+str(rep)) as pbar:
-        for t in range(REVOLUTION):
+    with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution '+str(rep)) as pbar:
+        for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
             swarm = swarm_data[t]
             graph = topo_graphs[t]
 
@@ -319,6 +320,6 @@ for rep in range(NB_REPETITIONS):
 results_df = pd.DataFrame(final_data)
 print(results_df.head())
 
-filename = 'sat50_temporal_'+algo+'_rep'+str(NB_REPETITIONS)+'.csv'
+filename = 'sat50_temporal_'+algo+'_sampled'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
 print('\nExporting to', os.path.join(EXPORT_PATH, filename))
 results_df.to_csv(os.path.join(EXPORT_PATH, filename), sep=',')
