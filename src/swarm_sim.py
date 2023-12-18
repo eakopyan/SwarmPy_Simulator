@@ -67,7 +67,7 @@ class Node:
         """
         return dist((self.x, self.y, self.z) , (node.x, node.y, node.z))
     
-    def is_neighbor(self, node, connection_range=0):
+    def is_neighbor(self, node, connection_range=0, weight=None):
         """
         Function to verify whether two nodes are neighbors or not, based on the connection range. 
         Either adds or removes the second node from the neighbor list of the first.
@@ -81,9 +81,15 @@ class Node:
         """
         if node.id != self.id:
             if self.compute_dist(node) <= connection_range:
-                self.add_neighbor(node)
+                if weight:
+                    self.add_neighbor((node,weight))
+                else:
+                    self.add_neighbor(node)
                 return 1 
-            self.remove_neighbor(node)
+            if weight:
+                self.remove_neighbor((node,weight))
+            else:
+                self.remove_neighbor(node)
         return 0
     
     def remove_neighbor(self, node):
@@ -256,6 +262,17 @@ class Swarm:
             matrix.append([n1.compute_dist(n2) for n2 in self.nodes if n1.id != n2.id])
         return matrix
     
+    
+    def find_closest_neighbors(self, node, connection_range):
+        coef = 0
+        neighbors = []
+        while len(neighbors)==0:
+            coef += 1
+            distances = [(n2, node.compute_dist(n2)) for n2 in self.nodes]
+            neighbors = [d[0] for d in distances if d[1]<=coef*connection_range and d[1]>0]
+        return (neighbors, coef)
+
+    
     def get_node_by_id(self, id:int):
         """
         Function to retrieve a Node object in the swarm from its node ID.
@@ -270,7 +287,12 @@ class Swarm:
             if node.id == id:
                 return node
             
-    def neighbor_matrix(self, connection_range=None):
+            
+    def isolated_nodes(self):
+        return [node for node in self.nodes if len(node.neighbors)==0]
+    
+
+    def neighbor_matrix(self, connection_range=None, weighted=False):
         """
         Function to compute the neighbor matrix of the swarm.
         If two nodes are neighbors (according to the given connection range), the row[col] equals to 1. Else 0.
@@ -285,7 +307,13 @@ class Swarm:
         if not connection_range:
             connection_range=self.connection_range # Use the attribute of the Swarm object if none specified
         for node in self.nodes:
-            matrix.append([node.is_neighbor(nb,connection_range) for nb in self.nodes])
+            matrix.append([node.is_neighbor(nb, connection_range, weighted) for nb in self.nodes])
+            
+        if weighted:
+            for node in self.isolated_nodes():
+                (neighbors, coef) = self.find_closest_neighbors(node, connection_range)
+                for n in neighbors:
+                    matrix[node.id][n.id] = node.is_neighbor( n, coef*connection_range, weight=pow(coef,2))
         return matrix
         
     def remove_node(self, node:Node):
@@ -327,6 +355,16 @@ class Swarm:
                     G.add_edge(ni.id,nj.id)
         return G
     
+    def swarm_to_weighted_graph(self):
+        G = nx.Graph()
+        G.add_nodes_from([n.id for n in self.nodes])
+        visited = []
+        for ni in self.nodes:
+            for (nj, w) in ni.neighbors:
+                if ni.id != nj.id and set((ni.id, nj.id)) not in visited:
+                    visited.append((ni.id,nj.id))
+                    G.add_edge(ni.id, nj.id, weight=w)
+        return G
     
     #*************** Metrics ******************
     def cluster_coef(self):

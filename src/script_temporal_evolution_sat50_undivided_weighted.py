@@ -23,9 +23,9 @@ SAMPLE_STEP = 12 # Take one out of 12 samples (alleviates calculations)
 
 
 #============================= FUNCTIONS ==================================
-def add_data_row(data_dict,tsp,con,red,disp,mod,crit,cost,eff):
+def add_data_row(data_dict,tsp,flow,red,disp,mod,crit,cost,eff):
         data_dict['Timestamp'].append(tsp)
-        data_dict['Connectivity'].append(con)
+        data_dict['Flow robustness'].append(flow)
         data_dict['Redundancy_avg'].append(red)
         data_dict['Disparity_avg'].append(disp)
         data_dict['Modularity'].append(mod)
@@ -67,6 +67,14 @@ def origin_destination_pairs():
     return NB_NODES*(NB_NODES-1)/2
 
 
+def pair_efficiency(G, u, v, weight='weight'):
+    try:
+        eff = 1 / nx.shortest_path_length(G, u, v, weight=weight)
+    except nx.NetworkXNoPath:
+        eff = 0
+    return eff
+
+
 def pair_disparity(shortest_paths:list, spl:int):
     if len(shortest_paths)==1:
         return 0.0
@@ -106,13 +114,13 @@ with tqdm(total=REVOLUTION, desc='Converting to topologies') as pbar:
 neighbor_matrices = {} # Dict{timestamp: matrix}
 with tqdm(total=REVOLUTION, desc='Computing neighbor matrices') as pbar:
     for t in range(REVOLUTION):
-        neighbor_matrices[t] = swarm_data[t].neighbor_matrix()
+        neighbor_matrices[t] = swarm_data[t].neighbor_matrix(weighted=True)
         pbar.update(1)
 
 topo_graphs = {} # Dict{timestamp: Graph}
 with tqdm(total=REVOLUTION, desc='Converting to NetworkX graphs') as pbar:
     for t in range(REVOLUTION):
-        topo_graphs[t] = swarm_data[t].swarm_to_nxgraph()
+        topo_graphs[t] = swarm_data[t].swarm_to_weighted_graph()
         pbar.update(1)
 
 
@@ -121,7 +129,7 @@ with tqdm(total=REVOLUTION, desc='Converting to NetworkX graphs') as pbar:
 # Dict to store data (convert later into pd.DataFrame)
 final_data = {
     'Timestamp':[],
-    'Connectivity':[],
+    'Flow robustness':[],
     'Redundancy_avg':[],
     'Disparity_avg':[],
     'Modularity':[],
@@ -144,18 +152,18 @@ with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution') as pbar:
         redundancies = []
         disparities = []
         total_spl = 0
-        pair_efficiency = 0.0
+        eff = 0.0
 
         for src_id in graph.nodes:
             for dst_id in graph.nodes:
                 if dst_id != src_id and set((src_id,dst_id)) not in visited_pairs:  
                     visited_pairs.append(set((src_id,dst_id))) 
                     pair_red = 0
-                    pair_efficiency += nx.efficiency(graph, src_id, dst_id)
+                    eff += pair_efficiency(graph, src_id, dst_id, weight='weight')
                     if nx.has_path(graph, src_id, dst_id):
                         paths.append(set((src_id,dst_id))) 
-                        spl = nx.shortest_path_length(graph, source=src_id, target=dst_id)
-                        shortest_paths = list(nx.all_shortest_paths(graph, src_id, dst_id))
+                        spl = nx.shortest_path_length(graph, source=src_id, target=dst_id, weight='weight')
+                        shortest_paths = list(nx.all_shortest_paths(graph, src_id, dst_id, weight='weight'))
                         pair_red += len(shortest_paths)
                         pair_disp = pair_disparity(shortest_paths, spl)
                         total_spl += spl
@@ -163,22 +171,22 @@ with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution') as pbar:
                         redundancies.append(pair_red)
                         disparities.append(pair_disp)
 
-        con = len(paths)/nb_max
+        flow = len(paths)/nb_max
         mod = modularity(graph)
         df_bc = pd.DataFrame(swarm_betweeness_centrality(graph))
         crit = len(df_bc[df_bc['BC']>=0.05]['BC'])
         cost = total_spl*2
-        eff = pair_efficiency/nb_max
+        global_eff = eff/nb_max
 
         add_data_row(final_data,
                         t,
-                        con,
+                        flow,
                         np.mean(redundancies),
                         np.mean(disparities),
                         mod,
                         crit,
                         cost,
-                        eff)
+                        global_eff)
         pbar.update(1)
  
 
@@ -187,6 +195,6 @@ results_df = pd.DataFrame(final_data)
 print(results_df.head())
 print(results_df.shape[0], 'rows')
 
-filename = 'sat50_temporal_undivided_sampled_'+str(SAMPLE_STEP)+'.csv'
+filename = 'sat50_temporal_undivided_weighted_sampled'+str(SAMPLE_STEP)+'.csv'
 print('\nExporting to', os.path.join(EXPORT_PATH, filename))
 results_df.to_csv(os.path.join(EXPORT_PATH, filename), sep=',')
