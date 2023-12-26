@@ -310,7 +310,7 @@ for rep in range(NB_REPETITIONS):
             df_group = pd.DataFrame(group_betweeness_centrality(groups, graph, by_id=True))
             crit = len(df_group[df_group['BC']>=0.05]['BC'])
             cost = total_spl*2
-            eff = pair_efficiency/nb_max
+            global_eff = eff/nb_max
 
             add_data_row(final_data,
                          t,
@@ -320,7 +320,7 @@ for rep in range(NB_REPETITIONS):
                          mod,
                          crit,
                          cost,
-                         eff)
+                         global_eff)
             pbar.update(1)
  
 
