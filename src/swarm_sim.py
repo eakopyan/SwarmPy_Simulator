@@ -306,14 +306,16 @@ class Swarm:
         matrix = []
         if not connection_range:
             connection_range=self.connection_range # Use the attribute of the Swarm object if none specified
-        for node in self.nodes:
-            matrix.append([node.is_neighbor(nb, connection_range, weighted) for nb in self.nodes])
-            
+        if not weighted:
+            for node in self.nodes:
+                matrix.append([node.is_neighbor(nb, connection_range) for nb in self.nodes])
         if weighted:
+            for node in self.nodes:
+                matrix.append([node.is_neighbor(nb, connection_range, weight=1) for nb in self.nodes])
             for node in self.isolated_nodes():
                 (neighbors, coef) = self.find_closest_neighbors(node, connection_range)
                 for n in neighbors:
-                    matrix[node.id][n.id] = node.is_neighbor( n, coef*connection_range, weight=pow(coef,2))
+                    matrix[node.id][n.id] = node.is_neighbor(n, coef*connection_range, weight=pow(coef,2))
         return matrix
         
     def remove_node(self, node:Node):
