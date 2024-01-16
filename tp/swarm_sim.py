@@ -502,9 +502,9 @@ class Swarm:
             burning_nodes = next_nodes
         return swarms
     
-    def MDRW(self, n=10, s=1, overlap=False):
+    def MIRW(self, n=10, s=1, overlap=False):
         """
-        Function to perform graph division by the Multi-Dimensional Random Walk algorithm.
+        Function to perform graph division by the Multiple Independent Random Walk algorithm.
         In the initial phase, n nodes are selected as sources. Then they all perform random walks in parallel (see help(Node.random_walk) for
         more information). 
         We finally obtain n groups defined as the random walks from each source.
@@ -530,6 +530,8 @@ class Swarm:
                 if free_neighbors: # At least one unassigned neighbor
                     n_j = n_i.random_walk(i, overlap) # Next node
                 else:
+                    if free_nodes == []:
+                        break
                     n_j = self.random_jump(s, overlap) # If no neighbor, perform random jump in the graph
                 n_j.set_group(n_i.group)
                 swarms[k].add_node(n_j) 
