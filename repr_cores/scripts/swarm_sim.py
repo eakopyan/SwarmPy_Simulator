@@ -503,7 +503,6 @@ class Swarm:
     
     
     #************** Sampling algorithms ****************
-        
     def FFD(self, n=10, p=0.7, s=1, by_id=False):
         """
         Function to perform graph sampling by the Forest Fire algorithm. 
