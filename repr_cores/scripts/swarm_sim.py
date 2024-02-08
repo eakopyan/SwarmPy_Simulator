@@ -459,14 +459,14 @@ class Swarm:
             float: the graph density between 0 and 1.
         """
         N = len(self.nodes)
-        max_edges = N*(N-1)/2
+        max_edges = N*(N-1)/2 # Divide by 2 because each edge is counted twice
         if max_edges == 0:
             return 0
         edges = 0
         for n in self.nodes:
             common_nodes = set(n.neighbors).intersection(self.nodes)
             edges += len(common_nodes)
-        return edges/(2*max_edges) # Divide by 2 because each edge is counted twice
+        return edges/(max_edges) 
     
     def k_vicinity(self, depth=1):
         """
