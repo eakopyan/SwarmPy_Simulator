@@ -576,6 +576,8 @@ class Swarm:
                 if free_neighbors: # At least one unassigned neighbor
                     n_j = n_i.random_walk(s*group_id) # Next node
                 else:
+                    if free_nodes == []:
+                        break
                     n_j = self.random_jump(s) # If no neighbor, perform random jump in the graph
                 n_j.set_group(n_i.group)
                 groups[group_id].append(n_j)
