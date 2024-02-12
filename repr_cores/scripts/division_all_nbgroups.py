@@ -93,14 +93,14 @@ rmse_dict = {
 }
 
 
-ALGO = 'RND'
+ALGO = 'FFD'
 print('\nPerforming graph division:', ALGO, '\t\tNumber of repetitions:', NB_REPETITIONS)
 
 with tqdm(total=len(NB_GROUPS), desc='Number of groups') as group_bar:
     for nb_group in NB_GROUPS:
         for rep in range(NB_REPETITIONS):
             swarm_data[0].reset_groups()
-            groups = swarm_data[0].RND(n=nb_group, s=rep+1, by_id=True)# <==================== ALGO CHOICE 
+            groups = swarm_data[0].FFD(n=nb_group, s=rep+1, by_id=True)# <==================== ALGO CHOICE 
             
             for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
                 graph = topo_graphs[t]
