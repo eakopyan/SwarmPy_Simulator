@@ -19,7 +19,7 @@ REVOLUTION = 1800 # Number of data rows
 CONNECTION_RANGE = 30 # km
 
 SAMPLE_STEP = 12
-NB_REPETITIONS = 30
+NB_REPETITIONS = 20
 NB_GROUPS = np.arange(1,NB_NODES+1)
 
 #============================= FUNCTIONS ==================================
@@ -34,6 +34,13 @@ def variation_coef(data, mean=None):
         return np.sqrt(var)/mean
     print('Error: mean is null.')
     return -1
+
+def rmse(data, ref=None): # Compare the observed distribution to a reference value
+    if ref == None:
+        ref = np.mean(data)
+    errors = [(e-ref)**2 for e in data]
+    ratio = sum(errors)/len(data)
+    return np.sqrt(ratio)
 
 #========================== INITIALIZE TOPOLOGY ===========================
 
@@ -67,61 +74,56 @@ with tqdm(total=REVOLUTION, desc='Converting to NetworkX graphs') as pbar:
 
 #============================= REFERENCE METRICS ================================
 # Reference temporal evolution: Average Degree, Graph Density, Average Clustering Coefficient
-ref_ad, ref_acc, ref_abc = [], [], []
+ref_ad, ref_acc = [], []
 
 with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Reference metrics') as pbar:
     for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
         graph = topo_graphs[t]
         ref_ad.append(np.mean(nx.degree(graph)))
         ref_acc.append(nx.average_clustering(graph))
-        ref_abc.append(np.mean(list(nx.betweenness_centrality(graph).values())))
         pbar.update(1)
 
 #============================== GRAPH DIVISION ==================================
 
-varcoef_dict = {
+rmse_dict = {
     'Timestamp':[],
-    'VC AD':[],
-    'VC ACC':[],
-    'VC ABC':[]
+    'Nb groups':[],
+    'RMSE AD':[],
+    'RMSE ACC':[]
 }
 
 
-ALGO = 'FFD'
+ALGO = 'RND'
 print('\nPerforming graph division:', ALGO, '\t\tNumber of repetitions:', NB_REPETITIONS)
 
 with tqdm(total=len(NB_GROUPS), desc='Number of groups') as group_bar:
     for nb_group in NB_GROUPS:
         for rep in range(NB_REPETITIONS):
             swarm_data[0].reset_groups()
-            groups = swarm_data[0].FFD(n=nb_group, s=rep+1, by_id=True)# <==================== ALGO CHOICE 
+            groups = swarm_data[0].RND(n=nb_group, s=rep+1, by_id=True)# <==================== ALGO CHOICE 
             
             for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
                 graph = topo_graphs[t]
                 group_ad = [] # List(mean degree of group)
                 group_acc = []
-                group_abc = []
 
                 for group_id, node_list in groups.items():
                     if len(node_list)>0:
                         group_ad.append(np.mean(nx.degree(graph, node_list)))
                         group_acc.append(nx.average_clustering(graph, node_list))
-                        bc_dict = nx.betweenness_centrality(graph)
-                        group_abc.append(np.mean([bc_dict[i] for i in node_list]))
                     
-                vc_ad = variation_coef(group_ad, ref_ad[int(t/SAMPLE_STEP)]) 
-                vc_acc = variation_coef(group_acc, ref_acc[int(t/SAMPLE_STEP)]) 
-                vc_abc = variation_coef(group_abc, ref_abc[int(t/SAMPLE_STEP)]) 
+                rmse_ad = rmse(group_ad, ref_ad[int(t/SAMPLE_STEP)]) 
+                rmse_acc = rmse(group_acc, ref_acc[int(t/SAMPLE_STEP)]) 
                 
-                varcoef_dict['Timestamp'].append(t)
-                varcoef_dict['VC AD'].append(vc_ad)
-                varcoef_dict['VC ACC'].append(vc_acc)
-                varcoef_dict['VC ABC'].append(vc_abc)       
+                rmse_dict['Timestamp'].append(t)
+                rmse_dict['Nb groups'].append(nb_group)
+                rmse_dict['RMSE AD'].append(rmse_ad)
+                rmse_dict['RMSE ACC'].append(rmse_acc)      
         group_bar.update(1)
             
             
 #===================================== EXPORT DATA ===================================        
-df = pd.DataFrame(varcoef_dict)
-filename = 'sat50_varcoefs_'+ALGO+'_sampled'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
+df = pd.DataFrame(rmse_dict)
+filename = 'sat50_RMSE_'+ALGO+'_sampled'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
 print('\nExporting to', EXPORT_PATH+filename)
 df.to_csv(EXPORT_PATH+filename, sep=',')
