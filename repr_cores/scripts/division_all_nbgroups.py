@@ -19,7 +19,7 @@ REVOLUTION = 1800 # Number of data rows
 CONNECTION_RANGE = 30 # km
 
 SAMPLE_STEP = 12
-NB_REPETITIONS = 20
+NB_REPETITIONS = 30
 NB_GROUPS = np.arange(1,NB_NODES+1)
 
 #============================= FUNCTIONS ==================================
