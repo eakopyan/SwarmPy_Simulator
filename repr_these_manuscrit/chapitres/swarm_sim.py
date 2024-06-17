@@ -18,42 +18,44 @@ class Node:
     
     def __init__(self, id, x=0.0, y=0.0, z=0.0):
         """
-        Node object constructor
+        Node object constructor.
         
         Args:
-            id (int): the ID number of the satellite (mandatory)
+            id (int): the ID number of the satellite (mandatory).
             x (float, optional): the x-coordinate of the satellite. Defaults to 0.0.
             y (float, optional): the y-coordinate of the satellite. Defaults to 0.0.
             z (float, optional): the z-coordinate of the satellite. Defaults to 0.0.
+        
+        Returns:
+            Node: an instance of the Node class.
         """
         self.id = int(id)
         self.x = float(x)
         self.y = float(y) 
         self.z = float(z) 
-        self.neighbors = [] # List(Node), list of neighbor nodes to the node
-        self.group = -1 # Group ID to which belongs the node
-        self.cache = [] # List(Packet), list of packets that went through
+        self.neighbors = {} # Dict(Node ID, weight), dict of neighbors of the node with corresponding ISL weight (defaults to 1)
+        self.group = -1 # int, group ID to which belongs the node, defaults to -1 (unassigned)
         
     def __str__(self):
         """
-        Node object descriptor
+        Node object descriptor.
         
         Returns:
-            str: a string description of the node
+            str: a string description of the node.
         """
-        nb_neigh = len(self.neighbors)
+        nb_neigh = len(self.neighbors.keys())
         return f"Node ID {self.id} ({self.x},{self.y},{self.z}) has {nb_neigh} neighbor(s)\tGroup: {self.group}"
     
     #*************** Common operations ****************
-    def add_neighbor(self, node):
-        """
-        Function to add a node to the neighbor list of the node unless it is already in its list.
-        
+    def add_neighbor(self, node_id, weight=1):
+        """ 
+        Function to add a node from the swarm as a neighbor. 
+
         Args:
-            node (Node): the node to add.
+            node_id (int): the ID of the node to add. 
+            weight (float, optional): the weight of the ISL between the two nodes. Defaults to 1.
         """
-        if node not in self.neighbors:
-            self.neighbors.append(node)
+        self.neighbors[node_id] = weight
         
     def compute_dist(self, node):
         """
@@ -67,7 +69,7 @@ class Node:
         """
         return dist((self.x, self.y, self.z) , (node.x, node.y, node.z))
     
-    def is_neighbor(self, node, connection_range=0, weight=None):
+    def is_neighbor(self, node, connection_range=0):
         """
         Function to verify whether two nodes are neighbors or not, based on the connection range. 
         Either adds or removes the second node from the neighbor list of the first.
@@ -77,30 +79,29 @@ class Node:
             connection_range (int, optional): the maximum distance between two nodes to establish a connection. Defaults to 0.
 
         Returns:
-            int: 1 if neighbors, 0 if not.
+            int: weight of the ISL, 0 if no ISL or same node.
         """
+        weight = 0
         if node.id != self.id:
+            if self.compute_dist(node) <= 2*connection_range:
+                weight = 4 # emission cost is proportionnal to the square of the distance: if the distance is doubled, the cost is multiplied by 4
+                self.add_neighbor(node.id, weight)
             if self.compute_dist(node) <= connection_range:
-                if weight:
-                    self.add_neighbor((node,weight))
-                else:
-                    self.add_neighbor(node)
-                return 1 
-            if weight:
-                self.remove_neighbor((node,weight))
-            else:
-                self.remove_neighbor(node)
-        return 0
+                weight = 1
+                self.add_neighbor(node.id, weight)
+            if self.compute_dist(node) > 2*connection_range:
+                self.remove_neighbor(node.id)
+        return weight
     
-    def remove_neighbor(self, node):
+    def remove_neighbor(self, node_id):
         """
         Function to remove a node from the neighbor list of the node unless it is not in its list.
         
         Args:
             node (Node): the node to remove
         """
-        if node in self.neighbors:
-            self.neighbors.remove(node)   
+        if node_id in self.neighbors.keys():
+            del self.neighbors[node_id]
      
     def set_group(self, c):
         """
@@ -259,7 +260,7 @@ class Swarm:
         """
         matrix = []
         for n1 in self.nodes:
-            matrix.append([n1.compute_dist(n2) for n2 in self.nodes if n1.id != n2.id])
+            matrix.append([n1.compute_dist(n2) for n2 in self.nodes])
         return matrix
     
     
@@ -289,34 +290,56 @@ class Swarm:
             
             
     def isolated_nodes(self):
+        """
+        Function to retrieve a list of nodes that have no neighbors within the given connection range.
+
+        Args:
+            self (Swarm): an instance of the Swarm class.
+
+        Returns:
+            list(Node): a list of nodes with no neighbors.
+        """
         return [node for node in self.nodes if len(node.neighbors)==0]
     
 
-    def neighbor_matrix(self, connection_range=None, weighted=False):
+    def neighbor_matrix(self, connection_range=None):
         """
-        Function to compute the neighbor matrix of the swarm.
-        If two nodes are neighbors (according to the given connection range), the row[col] equals to 1. Else 0.
+        Function to compute the neighbor matrix of the swarm. 
+        The neighbor matrix is a 2D matrix where each entry [i][j] is equal to the edge weight if node i is a neighbor of node j, and 0 otherwise.
 
         Args:
-            connection_range (int, optional): the connection range of the swarm. Defaults to None.
+            connection_range (int, optional): the maximum distance between two nodes to establish a connection. Defaults to None, which means using the attribute of the Swarm object if none specified.
 
         Returns:
-            list(list(int)): the 2-dimensional neighbor matrix formatted as matrix[node1][node2] = neighbor.
+            list(list(int)): the 2D matrix representing the neighbor relationships between the nodes in the swarm.
         """
         matrix = []
         if not connection_range:
-            connection_range=self.connection_range # Use the attribute of the Swarm object if none specified
-        if not weighted:
-            for node in self.nodes:
-                matrix.append([node.is_neighbor(nb, connection_range) for nb in self.nodes])
-        if weighted:
-            for node in self.nodes:
-                matrix.append([node.is_neighbor(nb, connection_range, weight=1) for nb in self.nodes])
-            for node in self.isolated_nodes():
-                (neighbors, coef) = self.find_closest_neighbors(node, connection_range)
-                for n in neighbors:
-                    matrix[node.id][n.id] = node.is_neighbor(n, coef*connection_range, weight=pow(coef,2))
+            connection_range = self.connection_range  # Use the attribute of the Swarm object if none specified
+        for n1 in self.nodes:
+            matrix.append([n1.is_neighbor(n2, connection_range) for n2 in self.nodes])
         return matrix
+        
+    
+    def remove_expensive_edges(self, graph):
+        """
+        Function to remove expensive edges from the swarm.
+        An edge is considered expensive if its weight is higher than the weighted shortest path length between its two nodes.
+
+        Args:
+            graph (nx.Graph): the networkx graph representing the swarm.
+
+        Returns:
+            None: this function modifies the neighbor lists of the nodes in the swarm.
+        """
+        for node in self.nodes:
+            n1 = node.id
+            ncopy = dict(node.neighbors)
+            for n2, w in ncopy.items():
+                if nx.shortest_path_length(graph, n1, n2, weight='weight') < w:
+                    node.remove_neighbor(n2)
+        
+        
         
     def remove_node(self, node:Node):
         """
@@ -361,11 +384,12 @@ class Swarm:
         G = nx.Graph()
         G.add_nodes_from([n.id for n in self.nodes])
         visited = []
-        for ni in self.nodes:
-            for (nj, w) in ni.neighbors:
-                if ni.id != nj.id and set((ni.id, nj.id)) not in visited:
-                    visited.append((ni.id,nj.id))
-                    G.add_edge(ni.id, nj.id, weight=w)
+        for node in self.nodes:
+            n1 = node.id
+            for n2, w in node.neighbors.items():
+                if n1 != n2 and set((n1, n2)) not in visited:
+                    visited.append((n1,n2))
+                    G.add_edge(n1, n2, weight=w)
         return G
     
     #*************** Metrics ******************
