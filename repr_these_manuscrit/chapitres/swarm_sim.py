@@ -83,13 +83,14 @@ class Node:
         """
         weight = 0
         if node.id != self.id:
-            if self.compute_dist(node) <= 2*connection_range:
+            dist = self.compute_dist(node)
+            if dist <= 2*connection_range:
                 weight = 4 # emission cost is proportionnal to the square of the distance: if the distance is doubled, the cost is multiplied by 4
                 self.add_neighbor(node.id, weight)
-            if self.compute_dist(node) <= connection_range:
+            if dist <= connection_range:
                 weight = 1
                 self.add_neighbor(node.id, weight)
-            if self.compute_dist(node) > 2*connection_range:
+            if dist > 2*connection_range:
                 self.remove_neighbor(node.id)
         return weight
     
@@ -98,7 +99,7 @@ class Node:
         Function to remove a node from the neighbor list of the node unless it is not in its list.
         
         Args:
-            node (Node): the node to remove
+            node_id (int): the node to remove by ID.
         """
         if node_id in self.neighbors.keys():
             del self.neighbors[node_id]
@@ -221,7 +222,7 @@ class Swarm:
     
     def __init__(self, connection_range=0, nodes=[]):
         """
-        Swarm object constructor
+        Swarm object constructor.
         
         Args:
             connection_range (int, optional): the maximum distance between two nodes to establish a connection. Defaults to 0.
@@ -321,10 +322,11 @@ class Swarm:
         return matrix
         
     
-    def remove_expensive_edges(self, graph):
+    def remove_expensive_edges(self):
         """
         Function to remove expensive edges from the swarm.
-        An edge is considered expensive if its weight is higher than the weighted shortest path length between its two nodes.
+        An edge is considered expensive if its weight is higher than the weighted shortest path length between its two nodes, 
+        or if there are other shortest paths besides the direct edge.
 
         Args:
             graph (nx.Graph): the networkx graph representing the swarm.
@@ -332,11 +334,14 @@ class Swarm:
         Returns:
             None: this function modifies the neighbor lists of the nodes in the swarm.
         """
+        graph = self.swarm_to_weighted_graph()
         for node in self.nodes:
             n1 = node.id
             ncopy = dict(node.neighbors)
-            for n2, w in ncopy.items():
+            for n2,w in ncopy.items():
                 if nx.shortest_path_length(graph, n1, n2, weight='weight') < w:
+                    node.remove_neighbor(n2)
+                elif len(list(nx.all_shortest_paths(graph, n1, n2, weight='weight'))) > 1:
                     node.remove_neighbor(n2)
         
         
@@ -421,13 +426,15 @@ class Swarm:
                 cc.append(self.DFSUtil(temp, node, visited))
         return cc
     
-    def degree(self):
+    def degree(self, weighted=False):
         """
         Function to compute the degree (aka the number of neighbors) of each node within the swarm.
 
         Returns:
             list(int): the list of node degrees.
         """
+        if weighted:
+            return [sum([1/weight for weight in node.neighbors.values()]) for node in self.nodes]
         return [node.degree() for node in self.nodes]   
     
     def DFSUtil(self, temp, node, visited):
