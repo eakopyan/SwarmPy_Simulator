@@ -47,15 +47,15 @@ class Node:
         return f"Node ID {self.id} ({self.x},{self.y},{self.z}) has {nb_neigh} neighbor(s)\tGroup: {self.group}"
     
     #*************** Common operations ****************
-    def add_neighbor(self, node_id, weight=1):
+    def add_neighbor(self, node_id, cost=1):
         """ 
         Function to add a node from the swarm as a neighbor. 
 
         Args:
             node_id (int): the ID of the node to add. 
-            weight (float, optional): the weight of the ISL between the two nodes. Defaults to 1.
+            cost (float, optional): the weight of the ISL between the two nodes. Defaults to 1.
         """
-        self.neighbors[node_id] = weight
+        self.neighbors[node_id] = cost
         
     def compute_dist(self, node):
         """
@@ -69,7 +69,7 @@ class Node:
         """
         return dist((self.x, self.y, self.z) , (node.x, node.y, node.z))
     
-    def is_neighbor(self, node, connection_range=0):
+    def is_neighbor(self, node, connection_range=0, weighted=False):
         """
         Function to verify whether two nodes are neighbors or not, based on the connection range. 
         Either adds or removes the second node from the neighbor list of the first.
@@ -81,18 +81,18 @@ class Node:
         Returns:
             int: weight of the ISL, 0 if no ISL or same node.
         """
-        weight = 0
+        cost = 0
         if node.id != self.id:
             dist = self.compute_dist(node)
-            if dist <= 2*connection_range:
-                weight = 4 # emission cost is proportionnal to the square of the distance: if the distance is doubled, the cost is multiplied by 4
-                self.add_neighbor(node.id, weight)
+            if weighted and dist <= 2*connection_range:
+                cost = 4 # emission cost is proportionnal to the square of the distance: if the distance is doubled, the cost is multiplied by 4
+                self.add_neighbor(node.id, cost)
             if dist <= connection_range:
-                weight = 1
-                self.add_neighbor(node.id, weight)
+                cost = 1
+                self.add_neighbor(node.id, cost)
             if dist > 2*connection_range:
                 self.remove_neighbor(node.id)
-        return weight
+        return cost
     
     def remove_neighbor(self, node_id):
         """
@@ -230,6 +230,7 @@ class Swarm:
         """
         self.connection_range = connection_range
         self.nodes = nodes 
+        self.graph = None
         
     def __str__(self):
         """
@@ -251,6 +252,8 @@ class Swarm:
         """
         if node not in self.nodes:
             self.nodes.append(node)
+            if self.graph != None:
+                self.graph.add_node(node.id, group=node.group)
             
     def distance_matrix(self):
         """
@@ -303,7 +306,7 @@ class Swarm:
         return [node for node in self.nodes if len(node.neighbors)==0]
     
 
-    def neighbor_matrix(self, connection_range=None):
+    def neighbor_matrix(self, connection_range=None, weighted=False):
         """
         Function to compute the neighbor matrix of the swarm. 
         The neighbor matrix is a 2D matrix where each entry [i][j] is equal to the edge weight if node i is a neighbor of node j, and 0 otherwise.
@@ -318,7 +321,7 @@ class Swarm:
         if not connection_range:
             connection_range = self.connection_range  # Use the attribute of the Swarm object if none specified
         for n1 in self.nodes:
-            matrix.append([n1.is_neighbor(n2, connection_range) for n2 in self.nodes])
+            matrix.append([n1.is_neighbor(n2, connection_range, weighted) for n2 in self.nodes])
         return matrix
         
     
@@ -328,21 +331,21 @@ class Swarm:
         An edge is considered expensive if its weight is higher than the weighted shortest path length between its two nodes, 
         or if there are other shortest paths besides the direct edge.
 
-        Args:
-            graph (nx.Graph): the networkx graph representing the swarm.
-
         Returns:
             None: this function modifies the neighbor lists of the nodes in the swarm.
         """
-        graph = self.swarm_to_weighted_graph()
         for node in self.nodes:
             n1 = node.id
             ncopy = dict(node.neighbors)
             for n2,w in ncopy.items():
-                if nx.shortest_path_length(graph, n1, n2, weight='weight') < w:
+                if nx.shortest_path_length(self.graph, n1, n2, weight='cost') < w:
                     node.remove_neighbor(n2)
-                elif len(list(nx.all_shortest_paths(graph, n1, n2, weight='weight'))) > 1:
+                    if self.graph.has_edge(n1, n2):
+                        self.graph.remove_edge(n1, n2)
+                elif len(list(nx.all_shortest_paths(self.graph, n1, n2, weight='cost'))) > 1:
                     node.remove_neighbor(n2)
+                    if self.graph.has_edge(n1, n2):
+                        self.graph.remove_edge(n1, n2)
         
         
         
@@ -355,13 +358,19 @@ class Swarm:
         """
         if node in self.nodes:
             self.nodes.remove(node)
+            if self.graph != None:
+                self.graph.remove_node(node.id)
+                
         
     def reset_connection(self):
         """
-        Function to empty the neighbor list of each node of the swarm.
+        Function to empty the neighbor dict of each node in the swarm.
         """
         for node in self.nodes:
-            node.neighbors = []
+            node.neighbors = {}
+        if self.graph != None:
+            self.graph.remove_edges_from(list(self.graph.edges.keys()))
+                
             
     def reset_groups(self):
         """
@@ -369,45 +378,44 @@ class Swarm:
         """
         for node in self.nodes:
             node.set_group(-1)
+        if self.graph != None:
+            nx.set_node_attributes(self.graph, values=-1, name='group')
+ 
     
-    def swarm_to_nxgraph(self):
-        """
-        Function to convert a Swarm object into a NetworkX Graph. See help(networkx.Graph) for more information.
-
-        Returns:
-            nx.Graph: the converted graph.
-        """
+    def create_graph(self):
         G = nx.Graph()
-        G.add_nodes_from([n.id for n in self.nodes])
-        for ni in self.nodes:
-            for nj in self.nodes:
-                if ni.is_neighbor(nj, self.connection_range)==1:
-                    G.add_edge(ni.id,nj.id)
-        return G
-    
-    def swarm_to_weighted_graph(self):
-        G = nx.Graph()
-        G.add_nodes_from([n.id for n in self.nodes])
+        G.add_nodes_from([(n.id, {'group':n.group}) for n in self.nodes])
         visited = []
         for node in self.nodes:
             n1 = node.id
             for n2, w in node.neighbors.items():
                 if n1 != n2 and set((n1, n2)) not in visited:
                     visited.append((n1,n2))
-                    G.add_edge(n1, n2, weight=w)
-        return G
+                    G.add_edge(n1, n2, cost=w, proba=1/w)
+        self.graph = G
     
     #*************** Metrics ******************
-    def cluster_coef(self):
+    def cluster_coef(self, weight=None):
         """
-        Function to compute the clustering coefficients distribution of the swarm.
-        The clustering coefficient is defined as the existing number of edges between the neighbors of a node divided by the maximum
-        possible number of such edges.
+        Calculate the clustering coefficient of the graph.
+
+        The clustering coefficient is a measure of the degree to which nodes in a graph tend to cluster together.
+        It is a measure of the local density of connections in the graph.
+
+        Parameters:
+        weight (str, optional): The edge attribute that holds the numerical value used as a weight.
+            If None, every edge has weight 1.
 
         Returns:
-            list(float): list of clustering coefficients between 0 and 1.
+        dict: A dictionary where keys are nodes and values are the clustering coefficients of the nodes.
+
+        Raises:
+        NetworkXError: If the graph is not undirected.
+
+        References:
+        - Saramaki, J. et al (2008). Generalizations of the clustering coefficient to weighted complex networks.
         """
-        return [node.cluster_coef() for node in self.nodes]
+        return nx.clustering(self.graph, self.graph.nodes(), weight=weight)
     
     def connected_components(self):
         """
@@ -426,15 +434,13 @@ class Swarm:
                 cc.append(self.DFSUtil(temp, node, visited))
         return cc
     
-    def degree(self, weighted=False):
+    def degree(self):
         """
         Function to compute the degree (aka the number of neighbors) of each node within the swarm.
 
         Returns:
             list(int): the list of node degrees.
         """
-        if weighted:
-            return [sum([1/weight for weight in node.neighbors.values()]) for node in self.nodes]
         return [node.degree() for node in self.nodes]   
     
     def DFSUtil(self, temp, node, visited):
@@ -531,6 +537,22 @@ class Swarm:
                 if nx.has_path(G, ni, nj) and nj != ni:
                     lengths.append(nx.shortest_path_length(G, source=ni, target=nj))
         return lengths 
+    
+    
+    def strength(self):
+        """
+        Calculate the strength of each node in the swarm.
+    
+        The strength of a node is defined as the sum of the reciprocal of the costs (aka weights) of the edges connected to the node.
+        This measure is used to quantify the importance or influence of a node in a network.
+    
+        Parameters:
+        self (Swarm): The instance of the Swarm class.
+    
+        Returns:
+        list(float): A list of the strength values for each node in the swarm.
+        """
+        return [sum([1/cost for cost in node.neighbors.values()]) for node in self.nodes]
     
     
     #************** Sampling algorithms ****************
@@ -676,17 +698,20 @@ class Swarm:
         z_data = [node.z for node in self.nodes]
         ax.scatter(x_data, y_data, z_data, c=n_color, s=50)
     
-    def plot_edges(self, n_color='blue', e_color='gray'):
-        fig = plt.figure(figsize=(8,8))
+    def plot_edges(self, figsize=(5,5), n_color='gray', edgecolors=None):
+        fig = plt.figure(figsize=figsize)
         ax = plt.axes(projection='3d')
+        ax.set_axis_off()
         x_data = [node.x for node in self.nodes]
         y_data = [node.y for node in self.nodes]
         z_data = [node.z for node in self.nodes]
-        ax.scatter(x_data, y_data, z_data, c=n_color, s=50)
-        for node in self.nodes:
-            for n in node.neighbors:
-                if n in self.nodes:
-                    ax.plot([node.x, n.x], [node.y, n.y], [node.z, n.z], c=e_color)
+        ax.scatter(x_data, y_data, z_data, c=n_color, edgecolor='black', s=50)
+        if edgecolors==None:
+            edgecolors = {1:'blue', 4:'red'}
+        for n1 in self.nodes:
+            for nid,w in n1.neighbors.items():
+                n2 = self.get_node_by_id(nid)
+                ax.plot([n1.x, n2.x], [n1.y, n2.y], [n1.z, n2.z], c=edgecolors[w])
                     
                     
     
