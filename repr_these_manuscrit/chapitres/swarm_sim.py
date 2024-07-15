@@ -381,7 +381,7 @@ class Swarm:
         self.graph = G
     
     #*************** Metrics ******************
-    def cluster_coef(self, weight=None):
+    def cluster_coef(self, node_ids=None, weight=None):
         """
         Calculate the clustering coefficient of the graph.
 
@@ -401,7 +401,9 @@ class Swarm:
         References:
         - Saramaki, J. et al (2008). Generalizations of the clustering coefficient to weighted complex networks.
         """
-        return nx.clustering(self.graph, self.graph.nodes(), weight=weight)
+        if node_ids is None:
+            node_ids = self.graph.nodes()
+        return nx.clustering(self.graph, node_ids, weight=weight)
     
     def connected_components(self):
         """
@@ -525,21 +527,25 @@ class Swarm:
         return lengths 
     
     
-    def strength(self):
+    def strength(self, node_ids=None):
         """
-        Calculate the strength of each node in the swarm.
+        Calculate the strength of each node in the swarm, or the nodes specified by ID.
     
         The strength of a node is defined as the sum of the reciprocal of the costs (aka weights) of the edges connected to the node.
         This measure is used to quantify the importance or influence of a node in a network.
     
         Parameters:
         self (Swarm): The instance of the Swarm class.
+        node_ids (list, optional): The list of node IDs for which to compute strength. Defaults to None.
     
         Returns:
         list(float): A list of the strength values for each node in the swarm.
         """
-        return [sum([1/cost for cost in node.neighbors.values()]) for node in self.nodes]
-    
+        if node_ids is None:
+                nodes = self.nodes
+        else:
+            nodes = [self.get_node_by_id(nid) for nid in node_ids]
+        return [sum([1/cost for cost in node.neighbors.values()]) for node in nodes]
     
     #************** Sampling algorithms ****************
         
