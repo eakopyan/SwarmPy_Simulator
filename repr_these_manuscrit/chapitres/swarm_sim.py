@@ -9,6 +9,30 @@ from mpl_toolkits import mplot3d
 from random import seed, randint, choice, sample
 
 
+#============================================================================
+def random_node(search_list, s=1):
+    seed(s)
+    return choice(search_list)
+
+
+def proba_nodes(search_list, proba=0.7, s=1):
+    """
+    This function assigns each node in the search list to a success with a given probability.
+    The function uses a binomial trial to simulate the success or failure of each node in the search list.
+    
+    Parameters:
+    search_list (list(int)): The list of nodes to consider for the success assignment.
+    proba (float, optional): The probability of success for each node. Defaults to 0.7.
+    s (int, optional): The random seed number. Defaults to 1.
+    
+    Returns:
+    list(int): The list of nodes that obtained a success above the given probability threshold.
+    """
+    seed(s)
+    trial = binomial(1, proba, len(search_list))
+    nodes = [n for i,n in enumerate(search_list) if trial[i]==1] # Select the nodes that obtained a success above
+    return nodes
+
 #==============================================================================================
 
 class Node:
@@ -163,27 +187,6 @@ class Node:
     
     
     #*************** Sampling algorithms ****************
-    def proba_walk(self, p:float, s=1, overlap=False):
-        """
-        Function to perform a probabilistic hop from the node to its neighbor(s), usually used with the Forest Fire algorithm (see Swarm object).
-        Each neighbor node has a probability p to be chosen for the next hop.
-
-        Args:
-            p (float): the success probability between 0 and 1.
-            s (int, optional): the random seed. Defaults to 1.
-            overlap (bool, optional): if True, node groups are allowed to overlap. Defaults to False.
-
-        Returns:
-            list(Node): the list of neighbor nodes selected as next hops.
-        """
-        seed(s)
-        search_list = self.neighbors
-        if not overlap: # Restrain the search list to unassigned nodes
-            search_list = [n for n in self.neighbors if n.group==-1]
-        trial = binomial(1, p, len(search_list))
-        nodes = [n for i,n in enumerate(search_list) if trial[i]==1] # Select the nodes that obtained a success above
-        return nodes
-    
     def random_group(self, clist, s=1):
         """
         Function to appoint a group ID chosen randomly from the input list.
@@ -194,23 +197,6 @@ class Node:
         """
         seed(s)
         self.set_group(choice(clist))
-        
-    def random_walk(self, s=1, overlap=False):
-        """
-        Function to perform a random walk from the current node. One of its neighbor nodes is chosen randomly as the next hop.
-
-        Args:
-            s (int, optional): the random seed for the experiment. Defaults to 1.
-            overlap (bool, optional): if True, node groups are allowed to overlap. Defaults to False.
-
-        Returns:
-            Node: the neighbor node selected as the next hop.
-        """
-        seed(s)
-        search_list = self.neighbors
-        if not overlap: # Restrain the search list to unassigned nodes
-            search_list = [n for n in self.neighbors if n.group==-1]
-        return choice(search_list)
     
     
 #==============================================================================================
@@ -557,130 +543,106 @@ class Swarm:
     
     #************** Sampling algorithms ****************
         
-    def FFD(self, n=10, p=0.7, s=1, by_id=False):
+    def FFD(self, n=10, p=0.7, s=1):
         """
-        Function to perform graph sampling by the Forest Fire algorithm. 
-        In the initial phase, n nodes are selected as "fire sources". Then, the fire spreads to the neighbors with a probability of p.
-        We finally obtain n samples defined as the nodes burned by each source.
+        This function assigns each node in the swarm to a group using the Forest Fire Division (FFD) algorithm.
 
-        Args:
-            n (int, optional): the initial number of sources. Defaults to 10.
-            p (float, optional): the fire spreading probability. Defaults to 0.7.
-            s (int, optional): the random seed. Defaults to 1.
-            by_id (bool, optional): if True, returns groups by node ids. Defaults to False.
+        Parameters:
+        n (int, optional): The number of groups to create. Defaults to 10.
+        p (float, optional): The fire spreading probability. Defaults to 0.7.
+        s (int, optional): A random seed for the random group assignment. Defaults to 1.
 
         Returns:
-            dict(int:list): the dictionary of group IDs and their corresponding list of node IDs.
+        dict: A dictionary where the keys are the group IDs and the values are lists of node IDs.
         """
         sources = sample(self.nodes, n) # Initial random sources
-        groups = {} # Dict(group ID:list(nodes))
+        groups = {} # Dict(group ID:list(Node ID))
         for group_id,src in enumerate(sources): # Initialize swarms
             src.set_group(group_id)
-            groups[group_id] = [src]
-        free_nodes = [n for n in self.nodes if n.group==-1]
+            groups[group_id] = [src.id]
+        free_nodes = [n.id for n in self.nodes if n.group==-1]
         burning_nodes = sources
         next_nodes = []
         while free_nodes: # Spread paths from each burning node in parallel
             for bn in burning_nodes:
                 if not free_nodes:
                     break
-                free_neighbors = set(free_nodes).intersection(bn.neighbors)
+                free_neighbors = list(set(free_nodes).intersection(bn.neighbors.keys()))
                 if free_neighbors: # At least one unassigned neighbor
-                    nodes = bn.proba_walk(p, s) # Next node(s)
+                    nodes = proba_nodes(search_list=free_neighbors, proba=p, s=s) # Next node(s)
+                    for nid in nodes:
+                        n = self.get_node_by_id(nid)
+                        n.set_group(bn.group)
+                        groups[bn.group].append(nid)
+                        free_nodes.remove(nid)
+                        next_nodes.append(n)
                 else:
-                    nodes = [self.random_jump(s)] # If no neighbor, perform random jump in the graph
-                for n in nodes:
+                    nid = random_node(search_list=free_nodes) # If no neighbor, perform random jump in the graphn.set_group(bn.group)
+                    n = self.get_node_by_id(nid)
                     n.set_group(bn.group)
-                    groups[bn.group].append(n)
-                    free_nodes.remove(n)
+                    groups[bn.group].append(nid)
+                    free_nodes.remove(nid)
                     next_nodes.append(n)
             burning_nodes = next_nodes
-        if by_id:
-            groups_by_id = {}
-            for gid, nodes in groups.items():
-                groups_by_id[gid] = [n.id for n in nodes]
-            return groups_by_id
         return groups
     
-    def MIRW(self, n=10, s=1, by_id=False):
+    def MIRW(self, n=10, s=1):
         """
-        Function to perform graph division by the Multiple Independent Random Walk algorithm.
-        In the initial phase, n nodes are selected as sources. Then they all perform random walks in parallel (see help(Node.random_walk) for
-        more information). 
-        We finally obtain n groups defined as the random walks from each source.
+        This function assigns each node in the swarm to a random group by following the Multiple Independent Random Walks (MIRW) algorithm.
 
-        Args:
-            n (int, optional): the initial number of sources. Defaults to 10.
-            s (int, optional): the random seed. Defaults to 1.
-            overlap (bool, optional): if True, node groups are allowed to overlap. Defaults to False.
+        Parameters:
+        n (int, optional): The number of groups to create. Defaults to 10.
+        s (int, optional): A random seed for the random group assignment. Defaults to 1.
 
         Returns:
-            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm group.
+        dict: A dictionary where the keys are the group IDs and the values are lists of node IDs.
+
+        Example:
+        >>> swarm = Swarm(...)  # Initialize a swarm object
+        >>> groups = swarm.MIRW(n=10, s=1)
+        >>> print(groups)
+        {0: [1, 2, 3], 1: [4, 5, 6], 2: [7, 8, 9], 3: [10, 11, 12], 4: [13, 14, 15], 5: [16, 17, 18], 6: [19, 20, 21], 7: [22, 23, 24], 8: [25, 26, 27], 9: [28, 29, 30]}
         """
         sources = sample(self.nodes, n) # Initial random sources
-        groups = {} # Dict(group ID:list(Node))
+        groups = {} # Dict(group ID:list(Node ID))
         for group_id, src in enumerate(sources): # Initialize swarms
             src.set_group(group_id)
-            groups[group_id] = [src]
-        free_nodes = [n for n in self.nodes if n.group==-1]
+            groups[group_id] = [src.id]
+        free_nodes = [n.id for n in self.nodes if n.group==-1]
         while free_nodes: # Spread paths
             for group_id in groups.keys():
-                n_i = groups[group_id][-1] # Current node
-                free_neighbors = set(free_nodes).intersection(n_i.neighbors)
+                nid1 = groups[group_id][-1] # Current node
+                n1 = self.get_node_by_id(nid1)
+                free_neighbors = list(set(free_nodes).intersection(n1.neighbors.keys()))
                 if free_neighbors: # At least one unassigned neighbor
-                    n_j = n_i.random_walk(s*group_id) # Next node
+                    nid2 = random_node(search_list=free_neighbors, s=s*group_id) # Next node
                 else:
-                    n_j = self.random_jump(s) # If no neighbor, perform random jump in the graph
-                n_j.set_group(n_i.group)
-                groups[group_id].append(n_j)
-                free_nodes.remove(n_j)
-        if by_id:
-            groups_by_id = {}
-            for gid, nodes in groups.items():
-                groups_by_id[gid] = [n.id for n in nodes]
-            return groups_by_id
+                    if free_nodes == []:
+                        break
+                    nid2 = random_node(search_list=free_nodes) # If no neighbor, perform random jump in the graph
+                n2 = self.get_node_by_id(nid2)
+                n2.set_group(n1.group)
+                groups[group_id].append(nid2)
+                free_nodes.remove(nid2)
         return groups
     
-    def RND(self, n=10, s=1, by_id=False):
+    def RND(self, n=10, s=1):
         """
-        Function to perform graph division by the Random Node Division algorithm.
-        Each node choses a random group ID from the range given as parameter.
+        This function assigns each node in the swarm to a random group.
 
-        Args:
-            n (int, optional): the number of groups. Defaults to 10.
-            s (int, optional): the random seed. Defaults to 1.
+        Parameters:
+        n (int, optional): The number of groups to create. Defaults to 10.
+        s (int, optional): A random seed for the random group assignment. Defaults to 1.
 
         Returns:
-            dict(int:Swarm): the dictionary of group IDs and their corresponding Swarm group.
+        dict: A dictionary where the keys are the group IDs and the values are lists of node IDs.
         """
-        groups = {} # Dict(group ID:list(nodes))
+        groups = {}  
         for i, node in enumerate(self.nodes):
-            node.random_group(range(n), s*i)
+            node.random_group(range(n), s * i)
         for group_id in range(n):
-            groups[group_id] = [node for node in self.nodes if node.group==group_id]
-        if by_id:
-            groups_by_id = {}
-            for gid, nodes in groups.items():
-                groups_by_id[gid] = [node.id for node in nodes]
-            return groups_by_id
+            groups[group_id] = [node.id for node in self.nodes if node.group == group_id]
         return groups
-            
-    def random_jump(self, s=1, overlap=False):
-        """
-        Function to choose a new node in the graph by performing a random jump.
-
-        Args:
-            s (int, optional): the random seed. Defaults to 1.
-            overlap (bool, optional): if True, node groups are allowed to overlap. Defaults to False.
-
-        Returns:
-            Node: the randomly chosen node.
-        """
-        seed(s)
-        search_list = self.nodes
-        if not overlap: # Restrain the search list to unassigned nodes
-            search_list = [n for n in self.nodes if n.group==-1]
-        return choice(search_list)
     
 
     #************** Plot functions **************
