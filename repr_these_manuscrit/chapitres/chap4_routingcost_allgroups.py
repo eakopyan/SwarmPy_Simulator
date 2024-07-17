@@ -82,14 +82,14 @@ rcost_dict = {
 }
 
 
-ALGO = 'RND'
+ALGO = 'FFD'
 print('\nDivision algorithm:', ALGO, '\t\tNumber of repetitions:', NB_REPETITIONS)
 
-with tqdm(total=len(NB_GROUPS), desc='Number of groups') as group_bar:
-    for nb_group in NB_GROUPS:
+for nb_group in NB_GROUPS:
+    with tqdm(total=NB_REPETITIONS, desc='Group '+str(nb_group)) as group_bar:
         for rep in range(NB_REPETITIONS):
             swarm_data[0].reset_groups()
-            groups = swarm_data[0].RND(n=nb_group, s=rep+1)# <==================== ALGO CHOICE 
+            groups = swarm_data[0].FFD(n=nb_group, s=rep+1)# <==================== ALGO CHOICE 
             cost_inter = len(groups.keys())*(len(groups.keys())-1)
 
             for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
@@ -99,7 +99,7 @@ with tqdm(total=len(NB_GROUPS), desc='Number of groups') as group_bar:
                 rcost_dict['Timestamp'].append(t)
                 rcost_dict['Nb groups'].append(nb_group)
                 rcost_dict['Rcost'].append(rcost)   
-        group_bar.update(1)
+            group_bar.update(1)
         
         
 #===================================== EXPORT DATA ===================================        
