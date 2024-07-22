@@ -547,6 +547,29 @@ class Swarm:
             nodes = [self.get_node_by_id(nid) for nid in node_ids]
         return [sum([1/cost for cost in node.neighbors.values()]) for node in nodes]
     
+
+    def betweeness_centrality(self):
+        """
+        Calculate the betweenness centrality of each node in the swarm.
+
+        Betweenness centrality is a measure of the importance or influence of a node in a network.
+        It is defined as the fraction of all shortest paths in the network that pass through a given node.
+        Nodes with high betweenness centrality are considered critical.
+
+        Parameters:
+        self (Swarm): The instance of the Swarm class.
+
+        Returns:
+        dict: A dictionary where the keys are the node IDs and the values are the corresponding betweenness centrality values.
+        """
+        bc = nx.betweenness_centrality(self.graph)
+        bc_dict = {
+            'Node':list(bc.keys()),
+            'BC':list(bc.values())
+        }
+        return bc_dict
+
+
     #************** Sampling algorithms ****************
         
     def FFD(self, n=10, p=0.7, s=1):
