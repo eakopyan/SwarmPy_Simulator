@@ -130,14 +130,13 @@ final_data = {
 }
 
 
-ALGO = 'FFD'
+ALGO = 'RND'
 print('\nDivision algorithm:', ALGO, '\t\tNumber of repetitions:', NB_REPETITIONS)
 
-nb_flow = swarm_flow_nb()
 
 for rep in range(NB_REPETITIONS):
     swarm_data[0].reset_groups()
-    groups = swarm_data[0].FFD(n=NB_GROUPS, s=rep) # <==================== ALGO CHOICE 
+    groups = swarm_data[0].RND(n=NB_GROUPS, s=rep) # <==================== ALGO CHOICE 
     nb_flow = swarm_flow_nb(groups)
 
     with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution '+str(rep)) as pbar:
