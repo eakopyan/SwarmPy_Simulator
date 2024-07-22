@@ -198,6 +198,6 @@ results_df = pd.DataFrame(final_data)
 print(results_df.head())
 print(results_df.shape[0], 'rows')
 
-filename = 'sat50_reliability_'+ALGO+'_sampled_'+str(SAMPLE_STEP)+'.csv'
+filename = 'sat50_reliability_'+ALGO+'_sampled'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
 print('\nExporting to', EXPORT_PATH+filename)
-df.to_csv(EXPORT_PATH+filename, sep=',')
+results_df.to_csv(EXPORT_PATH+filename, sep=',')

@@ -120,18 +120,14 @@ with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution') as pbar:
             for dst_id in graph.nodes:
                 if dst_id != src_id and set((src_id,dst_id)) not in visited_pairs:  
                     visited_pairs.append(set((src_id,dst_id))) 
-                    pair_red = 0
                     pair_efficiency += nx.efficiency(graph, src_id, dst_id)
                     if nx.has_path(graph, src_id, dst_id):
                         paths.append(set((src_id,dst_id))) 
                         shortest_paths = list(nx.all_shortest_paths(graph, src_id, dst_id, weight='cost'))
                         spl = len(shortest_paths[0]) - 1
-                        pair_red = len(shortest_paths)
-                        pair_disp = pair_disparity(shortest_paths, spl)
                         rcost += spl
-
-                        redundancies.append(pair_red)
-                        disparities.append(pair_disp)
+                        redundancies.append(len(shortest_paths))
+                        disparities.append(pair_disparity(shortest_paths))
 
         rflow = len(paths)/nb_flow
         df_bc = pd.DataFrame(swarm.betweeness_centrality())
@@ -155,6 +151,6 @@ results_df = pd.DataFrame(final_data)
 print(results_df.head())
 print(results_df.shape[0], 'rows')
 
-filename = 'sat50_reliability_undivided_sampled_'+str(SAMPLE_STEP)+'.csv'
+filename = 'sat50_reliability_undivided_sampled'+str(SAMPLE_STEP)+'.csv'
 print('\nExporting to', EXPORT_PATH+filename)
-df.to_csv(EXPORT_PATH+filename, sep=',')
+results_df.to_csv(EXPORT_PATH+filename, sep=',')
