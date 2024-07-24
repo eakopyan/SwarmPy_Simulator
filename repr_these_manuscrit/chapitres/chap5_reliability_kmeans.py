@@ -1,6 +1,7 @@
 # coding: utf-8
 
 #============================ IMPORTS ======================================
+import networkx as nx
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
@@ -21,20 +22,62 @@ CONNECTION_RANGE = 30000 # m
 
 SAMPLE_STEP = 12
 NB_REPETITIONS = 30
-NB_GROUPS = np.arange(1,NB_NODES+1)
+NB_GROUPS = 10
 
 
 #============================= FUNCTIONS ==================================
-def routing_cost(swarm, group=None):
-    rcost = []
-    nodes = swarm.graph.nodes
-    if group:
-        nodes = group
-    for src in nodes:
-        for dst in nodes:
-            if nx.has_path(swarm.graph, src, dst):
-                rcost.append(nx.shortest_path_length(swarm.graph, src, dst, weight='cost'))
-    return sum(rcost)
+def add_data_row(data_dict,tsp,rflow, rcost, eff, red, disp, crit):
+        data_dict['Timestamp'].append(tsp)
+        data_dict['RFlow'].append(rflow)
+        data_dict['RCost'].append(rcost)
+        data_dict['Efficiency'].append(eff)
+        data_dict['Redundancy'].append(red)
+        data_dict['Disparity'].append(disp)
+        data_dict['Criticity'].append(crit)
+
+
+def swarm_flow_nb(groups):
+    nb_pairs = 0
+    for group in groups.values():
+        group_size = len(group)
+        nb_pairs += group_size*(group_size-1)/2
+    return nb_pairs
+
+
+def pair_disparity(shortest_paths:list):
+    if len(shortest_paths)==1:
+        return 0.0
+    disparity = 0
+    max_elem = len(shortest_paths[0]) - 2 # number of intermediate elements
+    pairs = []
+    for idx1,p1 in enumerate(shortest_paths):
+        for idx2,p2 in enumerate(shortest_paths):
+            if idx1 != idx2 and set([idx1,idx2]) not in pairs:
+                pairs.append(set([idx1,idx2]))
+                common_elem = set(p1).intersection(p2)
+                disparity += 1 - (len(common_elem)-2)/max_elem
+    return disparity/len(pairs)
+
+
+def group_betweeness_centrality(graph, sp_all, nb_flow):
+    shortest_paths = sp_all['Shortest paths']
+    for paths in shortest_paths:
+        for path in paths:
+            del path[0] # Discard endpoints
+            del path[-1]
+    bc_dict = {
+        'Node':[],
+        'BC':[]
+    }
+    for node in graph.nodes:
+        bc = 0
+        for paths in shortest_paths:
+            sp_node = [path for path in paths if node in path]
+            bc += len(sp_node)/len(paths)
+        bc = bc/nb_flow #Normalize over all possible pairs
+        bc_dict['Node'].append(node)
+        bc_dict['BC'].append(bc)
+    return bc_dict
 
 
 #========================== INITIALIZE TOPOLOGY ===========================
@@ -76,39 +119,90 @@ with tqdm(total=REVOLUTION, desc = 'Removing expensive edges') as pbar:
         
       
 #============================== GRAPH DIVISION ==================================
-rcost_dict = {
+# Dict to store data (convert later into pd.DataFrame)
+final_data = {
     'Timestamp':[],
-    'Nb groups':[],
-    'Rcost':[]
+    'RFlow':[],
+    'RCost':[],
+    'Efficiency':[],
+    'Redundancy':[],
+    'Disparity':[],
+    'Criticity': []
 }
 
 
 ALGO = 'KMeans'
 print('\nClustering algorithm:', ALGO, '\t\tNumber of repetitions:', NB_REPETITIONS)
 
-for nb_group in NB_GROUPS:
-    with tqdm(total=NB_REPETITIONS, desc='Group '+str(nb_group)) as group_bar:
-        for rep in range(NB_REPETITIONS):
-            swarm = swarm_data[0]
-            swarm.reset_groups()
-            kmeans = KMeans(n_clusters=nb_group).fit([[n.x, n.y, n.z] for n in swarm.nodes])
-            groups = {}
-            for i in range(nb_group):
-                groups[i] = [node.id for node in swarm.nodes if kmeans.labels_[node.id]==i]
-            cost_inter = len(groups.keys())*(len(groups.keys())-1)
 
-            for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
-                group_rcost = [routing_cost(swarm_data[t], gr) for gr in groups.values() if len(gr)>0]
-                rcost = sum(group_rcost)+cost_inter
+for rep in range(NB_REPETITIONS):
+    swarm = swarm_data[0]
+    swarm.reset_groups()
+    kmeans = KMeans(n_clusters=NB_GROUPS).fit([[n.x, n.y, n.z] for n in swarm.nodes])
+    groups = {}
+    for i in range(NB_GROUPS):
+        groups[i] = [node.id for node in swarm.nodes if kmeans.labels_[node.id]==i]
+    
+    nb_flow = swarm_flow_nb(groups)
 
-                rcost_dict['Timestamp'].append(t)
-                rcost_dict['Nb groups'].append(nb_group)
-                rcost_dict['Rcost'].append(rcost)   
-            group_bar.update(1)
-        
+    with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution '+str(rep)) as pbar:
+        for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
+            swarm = swarm_data[t]
+            graph = swarm.graph
+
+            sp_all = {
+                'Group':[],
+                'Source':[],
+                'Dest':[],
+                'Shortest paths':[]
+            }
+
+            visited_pairs, paths = [], []
+            redundancies = []
+            disparities = []
+            rcost = 0
+            pair_efficiency = 0.0
+
+            for group_id, group_nodes in groups.items():
+                for src_id in group_nodes:
+                    for dst_id in group_nodes:
+                        if dst_id != src_id and set((src_id,dst_id)) not in visited_pairs:  
+                            visited_pairs.append(set((src_id,dst_id))) 
+                            pair_efficiency += nx.efficiency(graph, src_id, dst_id)
+                            if nx.has_path(graph, src_id, dst_id):
+                                paths.append(set((src_id,dst_id))) 
+                                shortest_paths = list(nx.all_shortest_paths(graph, src_id, dst_id, weight='cost'))
+                                sp_all['Group'].append(group_id)
+                                sp_all['Source'].append(src_id)
+                                sp_all['Dest'].append(dst_id)
+                                sp_all['Shortest paths'].append(shortest_paths)
+
+                                rcost += len(shortest_paths[0]) - 1
+                                redundancies.append(len(shortest_paths))
+                                disparities.append(pair_disparity(shortest_paths))
+
+            rflow = len(paths)/nb_flow
+            df_group = pd.DataFrame(group_betweeness_centrality(graph, sp_all, nb_flow))
+            crit = len(df_group[df_group['BC']>=0.05]['BC'])
+            rcost = rcost*2
+            swarm_efficiency = pair_efficiency/nb_flow
+
+            add_data_row(final_data,
+                        t,
+                        rflow,
+                        rcost, 
+                        swarm_efficiency,  
+                        np.mean(redundancies),
+                        np.mean(disparities),
+                        crit)
+            pbar.update(1)
+
         
 #===================================== EXPORT DATA ===================================        
-df = pd.DataFrame(rcost_dict)
-filename = 'sat50_RCOST_'+ALGO+'_sampled'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
+results_df = pd.DataFrame(final_data)
+print(results_df.head())
+print(results_df.shape[0], 'rows')
+
+filename = 'sat50_reliability_'+ALGO+'_sampled'+str(SAMPLE_STEP)+'_rep'+str(NB_REPETITIONS)+'.csv'
 print('\nExporting to', EXPORT_PATH+filename)
-df.to_csv(EXPORT_PATH+filename, sep=',')
+results_df.to_csv(EXPORT_PATH+filename, sep=',')
