@@ -13,13 +13,14 @@ from swarm_sim import *
 PATH = 'data\\cnes_swarm50\\track_'
 EXPORT_PATH = 'repr_these_manuscrit\\output\\data\\'
 
-NB_NODES = 50
-DURATION = 10000   # Nb samples
-REVOLUTION = 1800  # Nb samples
-SAMPLE_FREQ = 0.1  # Hz, 1 sample every 10 seconds
-CONNECTION_RANGE = 30000 # m
+NB_NODES = 50       # Nombre de satellites (noeuds)
+DURATION = 10000    # Nombre total d'échantillons disponibles
+REVOLUTION = 1800   # Nombre d'échantillons pour 1 révolution en orbite lunaire
+SAMPLE_FREQ = 0.1   # Fréquence d'échantillonnage (Hz) : toutes les 10 secondes
+CONNECTION_RANGE = 30000    # Portée de connexion (m)
 
-SAMPLE_STEP = 12
+# Variables globales pour l'analyse de la division
+SAMPLE_STEP = 12    # Fréquence de ré-échantillonnage pour ne pas analyser toutes les topologies (1 sur 12, i.e. toutes les 2 minutes)
 
 
 #============================= FUNCTIONS ==================================
@@ -50,6 +51,8 @@ def pair_disparity(shortest_paths:list):
                 common_elem = set(p1).intersection(p2)
                 disparity += 1 - (len(common_elem)-2)/max_elem
     return disparity/len(pairs)
+
+
 
 #========================== INITIALIZE TOPOLOGY ===========================
 satellites = {} # Dict(sat_id: DataFrame)

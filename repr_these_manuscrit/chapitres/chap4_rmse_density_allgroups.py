@@ -12,15 +12,15 @@ from swarm_sim import *
 PATH = 'data\\cnes_swarm50\\track_'
 EXPORT_PATH = 'repr_these_manuscrit\\output\\data\\'
 
-NB_NODES = 50
-DURATION = 10000   # Nb samples
-REVOLUTION = 1800  # Nb samples
-SAMPLE_FREQ = 0.1  # Hz, 1 sample every 10 seconds
-CONNECTION_RANGE = 30000 # m
+NB_NODES = 50       # Nombre de satellites (noeuds)
+DURATION = 10000    # Nombre total d'échantillons disponibles
+REVOLUTION = 1800   # Nombre d'échantillons pour 1 révolution en orbite lunaire
+SAMPLE_FREQ = 0.1   # Fréquence d'échantillonnage (Hz) : toutes les 10 secondes
+CONNECTION_RANGE = 30000    # Portée de connexion (m)
 
-SAMPLE_STEP = 12
-NB_REPETITIONS = 30
-NB_GROUPS = np.arange(1,NB_NODES+1)
+SAMPLE_STEP = 12    # Fréquence de ré-échantillonnage pour ne pas analyser toutes les topologies (1 sur 12, i.e. toutes les 2 minutes)
+NB_REPETITIONS = 30 # Nombre de répétitions aléatoires et indépendantes des algorithmes de division
+NB_GROUPS = np.arange(1,NB_NODES+1)     # Liste du nombre de groupes
 
 
 #============================= FUNCTIONS ==================================
