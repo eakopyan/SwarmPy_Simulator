@@ -1,18 +1,12 @@
-# Before starting
+# Organisation du repository
 
-## Install the virtual environment
-First, make sure you create a virtual environment for this project (use `venv` preferably).
+## Enseignement à l'ENSEEIHT 
 
-Then, open the VS Code terminal and type:
+Le sujet du TP, ainsi que les ressources, sont disponibles dans le dossier `\tp`. 
 
-`.\.venv\Scripts\Activate.ps1`
+## Recherche et publications
 
-This will launch the activation script through Powershell. If you get an execution error because the script execution is deactivated on your device, then:
+ *  Les résultats présentés dans le manuscrit de thèse sont disponibles dans le dossier `\repr_these_manuscrit`.
+ *  Les résultats présentés dans le papier *Division Réseau Equitable dans les Essaims de Nanosatellites* (AlgoTel-CoRes 2024) sont disponibles dans le dossier `\repr_cores`.
 
-1. Open a Powershell terminal as administrator
-2. Type `set-executionpolicy unrestricted`
-3. Re-launch your activation script.
-
-All needed packages are listed in the `requirements.txt` file. To install them, type on the VS Code terminal:
-
-`python.exe -m pip install -r requirements.txt`
+ Le dossier `\data` contient toutes les traces de trajectoires de nanosatellites utilisées dans les différentes contributions. 
