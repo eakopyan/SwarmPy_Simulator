@@ -1,12 +1,10 @@
-from typing import List
-import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
 from numpy.random import binomial
 from math import dist 
 from mpl_toolkits import mplot3d
-from random import seed, randint, choice, sample
+from random import seed, choice, sample
 
 
 #============================================================================
@@ -199,6 +197,8 @@ class Node:
         self.set_group(choice(clist))
     
     
+    
+    
 #==============================================================================================
 
 class Swarm:
@@ -369,6 +369,15 @@ class Swarm:
  
     
     def create_graph(self):
+        """
+        Function to create a graph from a swarm topology. The graph is a mathematical structure used to model relationships between objects.
+    
+        Parameters:
+        self (Swarm): an instance of the Swarm class.
+    
+        Returns:
+        graph (networkx.Graph): a graph object representing the relationships between the nodes in the swarm.
+        """
         G = nx.Graph()
         G.add_nodes_from([(n.id, {'group':n.group}) for n in self.nodes])
         visited = []
