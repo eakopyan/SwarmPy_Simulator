@@ -1,8 +1,10 @@
 # coding: utf-8
 
 #============================ IMPORTS ======================================
+import networkx as nx
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 from tqdm import tqdm
 from swarm_sim import *
 
@@ -21,7 +23,9 @@ CONNECTION_RANGE = 30    # Portée de connexion (km)
 PROPAGATION = 'J4'
 ROW_DATA_START = 7
 
-SAMPLE_STEP = 30    # Fréquence de ré-échantillonnage pour ne pas analyser toutes les topologies (1 sur 12, i.e. toutes les 2 minutes)
+SAMPLE_STEP = 30    # Fréquence de ré-échantillonnage pour ne pas analyser toutes les topologies
+NB_REPETITIONS = 30 # Nombre de répétitions aléatoires et indépendantes des algorithmes de division
+NB_GROUPS = 10      # Division en 10 groupes
 
 
 #============================= FUNCTIONS ==================================
@@ -35,8 +39,12 @@ def add_data_row(data_dict,tsp,rflow, rcost, eff, red, disp, crit):
         data_dict['Criticity'].append(crit)
 
 
-def swarm_flow_nb():
-    return NB_NODES*(NB_NODES-1)/2
+def swarm_flow_nb(groups):
+    nb_pairs = 0
+    for group in groups.values():
+        group_size = len(group)
+        nb_pairs += group_size*(group_size-1)/2
+    return nb_pairs
 
 
 def pair_disparity(shortest_paths:list):
@@ -55,11 +63,32 @@ def pair_disparity(shortest_paths:list):
     return 0.0
 
 
+def group_betweeness_centrality(graph, sp_all, nb_flow):
+    shortest_paths = sp_all['Shortest paths']
+    for paths in shortest_paths:
+        for path in paths:
+            del path[0] # Discard endpoints
+            del path[-1]
+    bc_dict = {
+        'Node':[],
+        'BC':[]
+    }
+    for node in graph.nodes:
+        bc = 0
+        for paths in shortest_paths:
+            sp_node = [path for path in paths if node in path]
+            bc += len(sp_node)/len(paths)
+        bc = bc/nb_flow #Normalize over all possible pairs
+        bc_dict['Node'].append(node)
+        bc_dict['BC'].append(bc)
+    return bc_dict
+
+
 #========================== INITIALIZE TOPOLOGY ===========================
 swarm_months = {}
-print('\nNo graph division here.\n')
-nb_flow = swarm_flow_nb() # stable over time
-
+ALGO = 'FFD' # RND, MIRW, FFD or KMeans
+print('\nDivision algorithm:', ALGO, '\t\tNumber of repetitions:', NB_REPETITIONS)
+        
 for m in MONTHS:
     print('\nExtracting month', m)
     satellites = {} # Dict(sat_id: DataFrame)
@@ -100,9 +129,24 @@ for m in MONTHS:
         for t in swarm_topo.keys():
             swarm_topo[t].remove_expensive_edges()
             pbar.update(1)
-            
-    swarm_months[m] = swarm_topo
     
+    swarm_months[m] = swarm_topo
+            
+swarm_months[1][0].reset_groups()
+if ALGO=='RND':
+    groups = swarm_months[1][0].RND(n=NB_GROUPS, s=1)
+elif ALGO=='MIRW':
+    groups = swarm_months[1][0].MIRW(n=NB_GROUPS, s=1) # <==================== ALGO CHOICE 
+elif ALGO=='FFD':
+    groups = swarm_months[1][0].FFD(n=NB_GROUPS, s=1)
+elif ALGO=='KMeans':
+    kmeans = KMeans(n_clusters=NB_GROUPS).fit([[n.x, n.y, n.z] for n in swarm_months[1][0].nodes])
+    groups = {}
+    for i in range(NB_GROUPS):
+        groups[i] = [node.id for node in swarm_months[1][0].nodes if kmeans.labels_[node.id]==i]
+ 
+       
+for m in MONTHS:
     # Dict to store data (convert later into pd.DataFrame) (reinit each month)
     monthly_data = {
         'Timestamp':[],
@@ -114,13 +158,20 @@ for m in MONTHS:
         'Criticity': []
     }
     print('\nProcessing month', m)
+    swarm_data = swarm_months[m]
+    nb_flow = swarm_flow_nb(groups)
+
     with tqdm(total=REVOLUTION/SAMPLE_STEP, desc='Temporal evolution') as pbar:
-        swarm_data = swarm_months[m]
         for t in np.arange(0, REVOLUTION, SAMPLE_STEP):
             swarm = swarm_data[t]
             graph = swarm.graph
-            #print(swarm)
-            #print('Strength:', swarm.strength())
+
+            sp_all = {
+                'Group':[],
+                'Source':[],
+                'Dest':[],
+                'Shortest paths':[]
+            }
 
             visited_pairs, paths = [], []
             redundancies = []
@@ -128,40 +179,45 @@ for m in MONTHS:
             rcost = 0
             pair_efficiency = 0.0
 
-            for src_id in graph.nodes:
-                for dst_id in graph.nodes:
-                    if dst_id != src_id and set((src_id,dst_id)) not in visited_pairs:  
-                        visited_pairs.append(set((src_id,dst_id))) 
-                        pair_efficiency += nx.efficiency(graph, src_id, dst_id)
-                        if nx.has_path(graph, src_id, dst_id):
-                            paths.append(set((src_id,dst_id))) 
-                            shortest_paths = list(nx.all_shortest_paths(graph, src_id, dst_id, weight='cost'))
-                            spl = len(shortest_paths[0]) - 1
-                            rcost += spl
-                            redundancies.append(len(shortest_paths))
-                            disparities.append(pair_disparity(shortest_paths))
+            for group_id, group_nodes in groups.items():
+                for src_id in group_nodes:
+                    for dst_id in group_nodes:
+                        if dst_id != src_id and set((src_id,dst_id)) not in visited_pairs:  
+                            visited_pairs.append(set((src_id,dst_id))) 
+                            pair_efficiency += nx.efficiency(graph, src_id, dst_id)
+                            if nx.has_path(graph, src_id, dst_id):
+                                paths.append(set((src_id,dst_id))) 
+                                shortest_paths = list(nx.all_shortest_paths(graph, src_id, dst_id, weight='cost'))
+                                sp_all['Group'].append(group_id)
+                                sp_all['Source'].append(src_id)
+                                sp_all['Dest'].append(dst_id)
+                                sp_all['Shortest paths'].append(shortest_paths)
+
+                                rcost += len(shortest_paths[0]) - 1
+                                redundancies.append(len(shortest_paths))
+                                disparities.append(pair_disparity(shortest_paths))
 
             rflow = len(paths)/nb_flow
-            df_bc = pd.DataFrame(swarm.betweeness_centrality())
-            crit = len(df_bc[df_bc['BC']>=0.05]['BC'])
+            df_group = pd.DataFrame(group_betweeness_centrality(graph, sp_all, nb_flow))
+            crit = len(df_group[df_group['BC']>=0.05]['BC'])
             rcost = rcost*2
             swarm_efficiency = pair_efficiency/nb_flow
 
             add_data_row(monthly_data,
-                            t,
-                            rflow,
-                            rcost, 
-                            swarm_efficiency,  
-                            np.mean(redundancies),
-                            np.mean(disparities),
-                            crit)
+                        t,
+                        rflow,
+                        rcost, 
+                        swarm_efficiency,  
+                        np.mean(redundancies),
+                        np.mean(disparities),
+                        crit)
             pbar.update(1)
-            
+        
     #===================================== EXPORT DATA ===================================        
     results_df = pd.DataFrame(monthly_data)
     print(results_df.head())
     print(results_df.shape[0], 'rows')
 
-    filename = 'sat50_reliability_undivided_year'+str(m)+'.csv'
+    filename = 'sat50_reliability_'+ALGO+'_year'+str(m)+'.csv'
     results_df.to_csv(EXPORT_PATH+filename, sep=',')
-    print('Exported to', EXPORT_PATH+filename)
+    print('\nExported to', EXPORT_PATH+filename)
